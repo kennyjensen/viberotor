@@ -1,0 +1,393 @@
+      PROGRAM XINTE_JMAP_DRIVER
+      CHARACTER*32 COMMAND
+C
+      CALL GETARG(1,COMMAND)
+C
+      IF(COMMAND.EQ.'inte1' .OR. COMMAND.EQ.'INTE1') THEN
+        CALL RUNINTE1
+      ELSEIF(COMMAND.EQ.'inte2' .OR. COMMAND.EQ.'INTE2') THEN
+        CALL RUNINTE2
+      ELSEIF(COMMAND.EQ.'jmap' .OR. COMMAND.EQ.'JMAP') THEN
+        CALL RUNJMAP
+      ELSE
+        WRITE(*,*) 'unknown command'
+        STOP 1
+      ENDIF
+C
+      END
+
+
+      SUBROUTINE RUNINTE1
+      CHARACTER*256 STFILE, OUTFILE
+      INTEGER NSTA, ISAVE
+C
+      READ(*,1000) STFILE
+      READ(*,*) NSTA
+      READ(*,*) ISAVE
+      OUTFILE = ' '
+      IF(ISAVE.NE.0) READ(*,1000) OUTFILE
+C
+      CALL CLEARPROMPTS
+      CALL PUSHSTR(STFILE)
+      CALL PUSHLOG(ISAVE.NE.0)
+      IF(ISAVE.NE.0) CALL PUSHSTR(OUTFILE)
+C
+      CALL PREPSTATE
+      CALL INTE1
+      CALL WRITEINTERESULT('INTE1',NSTA,1)
+      RETURN
+C
+ 1000 FORMAT(A)
+      END
+
+
+      SUBROUTINE RUNINTE2
+      CHARACTER*256 STFILE, OUTFILE
+      INTEGER NSTA, ISAVE
+C
+      READ(*,1000) STFILE
+      READ(*,*) NSTA
+      READ(*,*) ISAVE
+      OUTFILE = ' '
+      IF(ISAVE.NE.0) READ(*,1000) OUTFILE
+C
+      CALL CLEARPROMPTS
+      CALL PUSHSTR(STFILE)
+      CALL PUSHLOG(ISAVE.NE.0)
+      IF(ISAVE.NE.0) CALL PUSHSTR(OUTFILE)
+C
+      CALL PREPSTATE
+      CALL INTE2
+      CALL WRITEINTERESULT('INTE2',NSTA,2)
+      RETURN
+C
+ 1000 FORMAT(A)
+      END
+
+
+      SUBROUTINE RUNJMAP
+      CHARACTER*256 FNAME1
+      REAL RJ1, RJ2, RJINC, CP1, CP2, CPINC
+C
+      READ(*,*) RJ1, RJ2, RJINC
+      READ(*,*) CP1, CP2, CPINC
+      READ(*,1000) FNAME1
+C
+      CALL CLEARPROMPTS
+      CALL PUSHREAL(RJ1)
+      CALL PUSHREAL(RJ2)
+      CALL PUSHREAL(RJINC)
+      CALL PUSHREAL(CP1)
+      CALL PUSHREAL(CP2)
+      CALL PUSHREAL(CPINC)
+      CALL PUSHSTR(FNAME1)
+C
+      CALL PREPSTATE
+      CALL JMAP
+      CALL WRITEJMAPRESULT('JMAP')
+      RETURN
+C
+ 1000 FORMAT(A)
+      END
+
+
+      SUBROUTINE PREPSTATE
+      INCLUDE 'XROTOR.INC'
+C
+      VERSION = 7.55
+      LUREAD = 5
+      LUWRIT = 6
+      LUTEMP = 35
+      LUSAVE = 36
+      CALL SETDEF
+C
+      NAME = 'XINTE JMAP DRIVER'
+      II = 5
+      NBLDS = 3
+      NAERO = 2
+      FAST = .FALSE.
+      FREE = .TRUE.
+      DUCT = .FALSE.
+      WIND = .FALSE.
+      VRTX = .FALSE.
+      DEST = .TRUE.
+      DESP = .FALSE.
+      LDESINI = .TRUE.
+      LROTOR = .FALSE.
+      NITERD = 12
+      NITERA = 12
+      ADWFCTR = 1.0
+      URDUCT = 1.0
+      PAR = 0.6
+      CSIZE = 0.014
+      SIZE = 10.0
+      SCRNFR = 0.70
+      IDEV = 1
+      IDEVRP = 2
+      IPSLU = 0
+      LPLOT = .FALSE.
+      LLAND = .TRUE.
+      LGRID = .TRUE.
+      XYOFF(1) = 0.0
+      XYOFF(2) = 0.0
+      XYFAC(1) = 1.0
+      XYFAC(2) = 1.0
+C
+      RADDES = 1.45
+      R0DES = 0.32
+      RWDES = 0.35
+      VELDES = 42.0
+      ADVDES = 0.69
+      RPMDES = 0.0
+      TDDES = 180.0
+      PDDES = 0.0
+      CLDES0 = 0.0
+      XITIP = 1.0
+      XI0 = R0DES / RADDES
+      XW0 = RWDES / RADDES
+      IINF = II + II/2
+C
+      CALL PUTAERO(1,0.28,-0.04,1.32,-1.05,
+     &             5.8,1.15,0.18,
+     &             0.010,0.28,0.020,-0.08,0.71,1.9E6,-0.14)
+      CALL PUTAERO(2,0.82,-0.025,1.18,-0.92,
+     &             5.5,1.00,0.16,
+     &             0.012,0.24,0.024,-0.06,0.68,2.2E6,-0.12)
+      CALL SETIAERO
+C
+      CALL SETX
+      CALL SETCLD(0.65,0.55)
+      CALL DESGEN
+      RETURN
+      END
+
+
+      SUBROUTINE WRITEINTERESULT(LABEL,NSTA,MODE)
+      INCLUDE 'XROTOR.INC'
+      CHARACTER*(*) LABEL
+      INTEGER NSTA, MODE
+      REAL S1(IX), S2(IX), S3(IX), S4(IX), S5(IX), S6(IX)
+      REAL CBACK, DX, XMOD, BETMOD, CMOD, XMID, CMID, DCDX, CEXT
+      REAL XOCTE
+      INTEGER IR
+C
+      CALL SPLINE(CH,  S1,T,II)
+      CALL SPLINE(BETA,S2,T,II)
+      CALL SPLINE(CL,  S3,T,II)
+      CALL SPLINE(CH,  S4,XI(1),II)
+      CALL SPLINE(BETA,S5,XI(1),II)
+      CALL SPLINE(CL,  S6,XI(1),II)
+C
+      WRITE(*,'(A,1X,A)') 'RESULT', LABEL
+      CALL WINT(NSTA)
+      XOCTE = 0.70
+      DO IR=1, NSTA
+        IF(MODE.EQ.1) THEN
+          CBACK = (0.75-XPITCH)*W1(IR)
+          DX = (CBACK*COS(W2(IR)))**2 / W0(IR)
+          XMOD = W0(IR) + DX
+          XMOD = AMIN1(0.99999,XMOD)
+          IF(W0(IR).GE.XI0) THEN
+            XT = TINVRT(XMOD)
+            BETMOD = SEVAL(XT,BETA,S2,T,II)
+          ELSE
+            BETMOD = SEVAL(W0(IR),BETA,S5,XI(1),II)
+          ENDIF
+C
+          CMOD = W1(IR)
+          IF(IR.GT.1) THEN
+            XMID = 0.5*(W0(IR-1) + W0(IR))
+            IF(XMID.GE.XI0) THEN
+              XT = TINVRT(XMID)
+              CMID = SEVAL(XT,CH,S1,T,II)
+            ELSE
+              CMID = SEVAL(XMID,CH,S4,XI(1),II)
+            ENDIF
+            DCDX = (W1(IR-1) - W1(IR)) / (W0(IR-1) - W0(IR))
+            CEXT = CMID + DCDX*(W0(IR)-XMID)
+            CMOD = AMAX1(CMOD,CEXT)
+          ENDIF
+          IF(IR.LT.NSTA) THEN
+            XMID = 0.5*(W0(IR+1) + W0(IR))
+            IF(XMID.GE.XI0) THEN
+              XT = TINVRT(XMID)
+              CMID = SEVAL(XT,CH,S1,T,II)
+            ELSE
+              CMID = SEVAL(XMID,CH,S4,XI(1),II)
+            ENDIF
+            DCDX = (W1(IR+1) - W1(IR)) / (W0(IR+1) - W0(IR))
+            CEXT = CMID + DCDX*(W0(IR)-XMID)
+            CMOD = AMAX1(CMOD,CEXT)
+          ENDIF
+C
+          CALL WREAL(W0(IR))
+          CALL WREAL(W1(IR))
+          CALL WREAL(W2(IR))
+          CALL WREAL(W3(IR))
+          CALL WREAL(W4(IR))
+          CALL WREAL(W9(IR))
+          CALL WREAL(BETMOD)
+          CALL WREAL(CMOD)
+        ELSE
+          CALL WREAL(W0(IR))
+          CALL WREAL(W1(IR))
+          CALL WREAL(W2(IR))
+          CALL WREAL(W3(IR))
+          CALL WREAL(W4(IR))
+          CALL WREAL(W9(IR))
+          CALL WREAL(XOCTE*W1(IR))
+        ENDIF
+      ENDDO
+      RETURN
+      END
+
+
+      SUBROUTINE WRITEJMAPRESULT(LABEL)
+      INCLUDE 'XROTOR.INC'
+      CHARACTER*(*) LABEL
+      INTEGER I
+C
+      WRITE(*,'(A,1X,A)') 'RESULT', LABEL
+      CALL WREAL(ADV)
+      CALL WREAL(VEL)
+      CALL WINT(II)
+      DO I=1, II
+        CALL WREAL(BETA(I))
+      ENDDO
+      RETURN
+      END
+
+
+      SUBROUTINE WREAL(X)
+      REAL X
+      WRITE(*,'(1X,ES24.16)') X
+      RETURN
+      END
+
+
+      SUBROUTINE WINT(I)
+      INTEGER I
+      WRITE(*,'(1X,I12)') I
+      RETURN
+      END
+
+
+      SUBROUTINE CLEARPROMPTS
+      INTEGER MAXANS
+      PARAMETER (MAXANS=32)
+      REAL REALANS(MAXANS)
+      LOGICAL LOGANS(MAXANS)
+      CHARACTER*256 STRANS(MAXANS)
+      INTEGER NREAL, IREAL, NLOG, ILOG, NSTR, ISTR
+      COMMON /PROMPTREAL/ REALANS, NREAL, IREAL
+      COMMON /PROMPTLOG/  LOGANS,  NLOG,  ILOG
+      COMMON /PROMPTSTR/  STRANS,  NSTR,  ISTR
+C
+      NREAL = 0
+      IREAL = 1
+      NLOG = 0
+      ILOG = 1
+      NSTR = 0
+      ISTR = 1
+      RETURN
+      END
+
+
+      SUBROUTINE PUSHREAL(VALUE)
+      INTEGER MAXANS
+      PARAMETER (MAXANS=32)
+      REAL VALUE
+      REAL REALANS(MAXANS)
+      INTEGER NREAL, IREAL
+      COMMON /PROMPTREAL/ REALANS, NREAL, IREAL
+C
+      NREAL = NREAL + 1
+      REALANS(NREAL) = VALUE
+      RETURN
+      END
+
+
+      SUBROUTINE PUSHLOG(VALUE)
+      INTEGER MAXANS
+      PARAMETER (MAXANS=32)
+      LOGICAL VALUE
+      LOGICAL LOGANS(MAXANS)
+      INTEGER NLOG, ILOG
+      COMMON /PROMPTLOG/ LOGANS, NLOG, ILOG
+C
+      NLOG = NLOG + 1
+      LOGANS(NLOG) = VALUE
+      RETURN
+      END
+
+
+      SUBROUTINE PUSHSTR(VALUE)
+      INTEGER MAXANS
+      PARAMETER (MAXANS=32)
+      CHARACTER*(*) VALUE
+      CHARACTER*256 STRANS(MAXANS)
+      INTEGER NSTR, ISTR
+      COMMON /PROMPTSTR/ STRANS, NSTR, ISTR
+C
+      NSTR = NSTR + 1
+      STRANS(NSTR) = VALUE
+      RETURN
+      END
+
+
+      SUBROUTINE ASKR(PROMPT,RINPUT)
+      INTEGER MAXANS
+      PARAMETER (MAXANS=32)
+      CHARACTER*(*) PROMPT
+      REAL RINPUT
+      REAL REALANS(MAXANS)
+      INTEGER NREAL, IREAL
+      COMMON /PROMPTREAL/ REALANS, NREAL, IREAL
+C
+      IF(IREAL.GT.NREAL) STOP 'ASKR underflow'
+      RINPUT = REALANS(IREAL)
+      IREAL = IREAL + 1
+      RETURN
+      END
+
+
+      SUBROUTINE ASKL(PROMPT,LINPUT)
+      INTEGER MAXANS
+      PARAMETER (MAXANS=32)
+      CHARACTER*(*) PROMPT
+      LOGICAL LINPUT
+      LOGICAL LOGANS(MAXANS)
+      INTEGER NLOG, ILOG
+      COMMON /PROMPTLOG/ LOGANS, NLOG, ILOG
+C
+      IF(ILOG.GT.NLOG) STOP 'ASKL underflow'
+      LINPUT = LOGANS(ILOG)
+      ILOG = ILOG + 1
+      RETURN
+      END
+
+
+      SUBROUTINE ASKS(PROMPT,INPUT)
+      INTEGER MAXANS
+      PARAMETER (MAXANS=32)
+      CHARACTER*(*) PROMPT
+      CHARACTER*(*) INPUT
+      CHARACTER*256 STRANS(MAXANS)
+      INTEGER NSTR, ISTR
+      COMMON /PROMPTSTR/ STRANS, NSTR, ISTR
+C
+      IF(ISTR.GT.NSTR) STOP 'ASKS underflow'
+      INPUT = STRANS(ISTR)
+      ISTR = ISTR + 1
+      RETURN
+      END
+
+
+      SUBROUTINE ASKC(PROMPT,COMAND,CARGS)
+      CHARACTER*(*) PROMPT
+      CHARACTER*(*) COMAND, CARGS
+C
+      COMAND = 'O'
+      CARGS = ' '
+      RETURN
+      END

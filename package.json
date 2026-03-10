@@ -1,0 +1,8 @@
+{
+  "name": "viberotor",
+  "private": true,
+  "scripts": {
+    "build:fortran-xnoise": "node test/helpers/fortran-xnoise.js --build",
+    "test": "node --test test/*.test.js"
+  }
+}

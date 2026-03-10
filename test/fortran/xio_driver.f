@@ -1,0 +1,287 @@
+      PROGRAM XIO_DRIVER
+      CHARACTER*32 COMMAND
+C
+      CALL GETARG(1,COMMAND)
+C
+      IF(COMMAND.EQ.'save' .OR. COMMAND.EQ.'SAVE') THEN
+        CALL RUNSAVE
+      ELSEIF(COMMAND.EQ.'saveold' .OR. COMMAND.EQ.'SAVEOLD') THEN
+        CALL RUNSAVEOLD
+      ELSEIF(COMMAND.EQ.'load' .OR. COMMAND.EQ.'LOAD') THEN
+        CALL RUNLOAD
+      ELSEIF(COMMAND.EQ.'loadold' .OR. COMMAND.EQ.'LOADOLD') THEN
+        CALL RUNLOADOLD
+      ELSE
+        WRITE(*,*) 'unknown command'
+        STOP 1
+      ENDIF
+C
+      END
+
+
+      SUBROUTINE RUNSAVE
+      CHARACTER*256 FNAME1
+C
+      CALL READSAVESTATE(FNAME1)
+      CALL SAVE(FNAME1)
+      WRITE(*,'(A)') 'RESULT SAVE'
+      RETURN
+      END
+
+
+      SUBROUTINE RUNSAVEOLD
+      CHARACTER*256 FNAME1
+C
+      CALL READSAVESTATE(FNAME1)
+      CALL SAVEOLD(FNAME1)
+      WRITE(*,'(A)') 'RESULT SAVEOLD'
+      RETURN
+      END
+
+
+      SUBROUTINE RUNLOAD
+      CHARACTER*256 FNAME1
+      INTEGER INITII
+C
+      READ(*,1000) FNAME1
+      READ(*,*) INITII
+      CALL PREPLOADSTATE(INITII)
+      CALL LOAD(FNAME1)
+      CALL WRITELOADSTATE('LOAD')
+      RETURN
+C
+ 1000 FORMAT(A)
+      END
+
+
+      SUBROUTINE RUNLOADOLD
+      CHARACTER*256 FNAME1
+      INTEGER INITII
+C
+      READ(*,1000) FNAME1
+      READ(*,*) INITII
+      CALL PREPLOADSTATE(INITII)
+      CALL LOADOLD(FNAME1)
+      CALL WRITELOADSTATE('LOADOLD')
+      RETURN
+C
+ 1000 FORMAT(A)
+      END
+
+
+      SUBROUTINE READSAVESTATE(FNAME1)
+      INCLUDE 'XROTOR.INC'
+      CHARACTER*(*) FNAME1
+      CHARACTER*128 NAMELINE
+      INTEGER I
+      INTEGER N
+      INTEGER J
+      INTEGER IFREE
+      INTEGER IDUCT
+      INTEGER IWIND
+C
+      READ(*,*) VERSION
+      READ(*,*) ICONV
+      CONV = ICONV .NE. 0
+      READ(*,1000) NAMELINE
+      NAME = NAMELINE
+      READ(*,*) II,NBLDS,NAERO,NADD
+      READ(*,*) RHO,VSO,RMU,ALT
+      READ(*,*) RAD,VEL,ADV,ADW,RAKE,XI0,XW0,URDUCT
+      READ(*,*) IFREE,IDUCT,IWIND
+      FREE = IFREE .NE. 0
+      DUCT = IDUCT .NE. 0
+      WIND = IWIND .NE. 0
+      CALL READVEC(XI,II)
+      CALL READVEC(CH,II)
+      CALL READVEC(BETA0,II)
+      CALL READVEC(UBODY,II)
+      CALL READVEC(XIAERO,NAERO)
+      DO J=1, 14
+        DO N=1, NAERO
+          AERODATA(J,N) = 0.0
+        ENDDO
+      ENDDO
+      DO J=1, 13
+        DO N=1, NAERO
+          READ(*,*) AERODATA(J,N)
+        ENDDO
+      ENDDO
+      IF(NADD.GT.0) THEN
+        CALL READVEC(RADD,NADD)
+        CALL READVEC(UADD,NADD)
+        CALL READVEC(VADD,NADD)
+      ENDIF
+      READ(*,1000) FNAME1
+      RETURN
+C
+ 1000 FORMAT(A)
+      END
+
+
+      SUBROUTINE PREPLOADSTATE(INITII)
+      INCLUDE 'XROTOR.INC'
+      INTEGER INITII
+C
+      VERSION = 7.55
+      LUREAD = 5
+      LUWRIT = 6
+      LUTEMP = 35
+      LUSAVE = 4
+      CALL SETDEF
+      XITIP = 1.0
+      XINF = 3.0
+      NN = 32
+      IINF = II + II/2
+      GEE = 9.81
+      ADWFCTR = 1.0
+      NITERD = 40
+      NITERA = 40
+      IF(INITII.GT.0) II = INITII
+      RETURN
+      END
+
+
+      SUBROUTINE WRITELOADSTATE(LABEL)
+      INCLUDE 'XROTOR.INC'
+      CHARACTER*(*) LABEL
+      INTEGER I
+      INTEGER J
+C
+      WRITE(*,'(A,1X,A)') 'RESULT', LABEL
+      IF(CONV) THEN
+        CALL WINT(1)
+      ELSE
+        CALL WINT(0)
+      ENDIF
+      IF(FREE) THEN
+        CALL WINT(1)
+      ELSE
+        CALL WINT(0)
+      ENDIF
+      IF(DUCT) THEN
+        CALL WINT(1)
+      ELSE
+        CALL WINT(0)
+      ENDIF
+      IF(WIND) THEN
+        CALL WINT(1)
+      ELSE
+        CALL WINT(0)
+      ENDIF
+      IF(LROTOR) THEN
+        CALL WINT(1)
+      ELSE
+        CALL WINT(0)
+      ENDIF
+      CALL WINT(II)
+      CALL WINT(NBLDS)
+      CALL WINT(NAERO)
+      CALL WINT(NADD)
+      CALL WREAL(RHO)
+      CALL WREAL(VSO)
+      CALL WREAL(RMU)
+      CALL WREAL(ALT)
+      CALL WREAL(RAD)
+      CALL WREAL(VEL)
+      CALL WREAL(ADV)
+      CALL WREAL(RAKE)
+      CALL WREAL(XI0)
+      CALL WREAL(XW0)
+      CALL WREAL(URDUCT)
+      CALL WREAL(TTOT)
+      CALL WREAL(PTOT)
+      CALL WREAL(QTOT)
+      CALL WREAL(RADDES)
+      CALL WREAL(VELDES)
+      CALL WREAL(ADVDES)
+      CALL WREAL(RPMDES)
+      CALL WREAL(R0DES)
+      CALL WREAL(RWDES)
+      CALL WREAL(TDDES)
+      CALL WREAL(PDDES)
+      CALL WREAL(CLDES0)
+      DO I=1, II
+        CALL WREAL(XI(I))
+      ENDDO
+      DO I=1, II
+        CALL WREAL(CH(I))
+      ENDDO
+      DO I=1, II
+        CALL WREAL(BETA(I))
+      ENDDO
+      DO I=1, II
+        CALL WREAL(BETA0(I))
+      ENDDO
+      DO I=1, II
+        CALL WREAL(UBODY(I))
+      ENDDO
+      DO I=1, II
+        CALL WREAL(CL(I))
+      ENDDO
+      DO I=1, II
+        CALL WREAL(CLDES(I))
+      ENDDO
+      DO I=1, II
+        CALL WINT(IAERO(I))
+      ENDDO
+      DO I=1, NAERO
+        CALL WREAL(XIAERO(I))
+      ENDDO
+      DO J=1, 13
+        DO I=1, NAERO
+          CALL WREAL(AERODATA(J,I))
+        ENDDO
+      ENDDO
+      DO I=1, NADD
+        CALL WREAL(RADD(I))
+      ENDDO
+      DO I=1, NADD
+        CALL WREAL(UADD(I))
+      ENDDO
+      DO I=1, NADD
+        CALL WREAL(VADD(I))
+      ENDDO
+      RETURN
+      END
+
+
+      SUBROUTINE READVEC(A,N)
+      REAL A(*)
+      INTEGER N
+      INTEGER I
+C
+      DO I=1, N
+        READ(*,*) A(I)
+      ENDDO
+      RETURN
+      END
+
+
+      SUBROUTINE WREAL(X)
+      REAL X
+C
+      WRITE(*,1000) X
+      RETURN
+C
+ 1000 FORMAT(1PE24.16)
+      END
+
+
+      SUBROUTINE WINT(I)
+      INTEGER I
+C
+      WRITE(*,1000) I
+      RETURN
+C
+ 1000 FORMAT(I12)
+      END
+
+
+      SUBROUTINE ASKS(PROMPT,INPUT)
+      CHARACTER*(*) PROMPT
+      CHARACTER*(*) INPUT
+C
+      INPUT = ' '
+      RETURN
+      END

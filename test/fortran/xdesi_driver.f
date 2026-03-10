@@ -1,0 +1,279 @@
+      PROGRAM XDESI_DRIVER
+      CHARACTER*32 COMMAND
+C
+      CALL GETARG(1,COMMAND)
+C
+      IF(COMMAND.EQ.'desgen' .OR. COMMAND.EQ.'DESGEN') THEN
+        CALL RUNDESGEN
+      ELSEIF(COMMAND.EQ.'desini' .OR. COMMAND.EQ.'DESINI') THEN
+        CALL RUNDESINI
+      ELSEIF(COMMAND.EQ.'deiter' .OR. COMMAND.EQ.'DEITER') THEN
+        CALL RUNDEITER
+      ELSEIF(COMMAND.EQ.'desmil' .OR. COMMAND.EQ.'DESMIL') THEN
+        CALL RUNDESMIL
+      ELSEIF(COMMAND.EQ.'setcld_linear' .OR.
+     &       COMMAND.EQ.'SETCLD_LINEAR') THEN
+        CALL RUNSETCLDLINEAR
+      ELSEIF(COMMAND.EQ.'setcld_file' .OR.
+     &       COMMAND.EQ.'SETCLD_FILE') THEN
+        CALL RUNSETCLDFILE
+      ELSEIF(COMMAND.EQ.'savcld' .OR. COMMAND.EQ.'SAVCLD') THEN
+        CALL RUNSAVCLD
+      ELSE
+        WRITE(*,*) 'unknown command'
+        STOP 1
+      ENDIF
+C
+      END
+
+
+      SUBROUTINE RUNDESGEN
+      CALL PREPBASE
+      CALL DESGEN
+      CALL WRITEDESSTATE('DESGEN')
+      RETURN
+      END
+
+
+      SUBROUTINE RUNDESINI
+      CALL PREPBASE
+      CALL PREPDESRUN
+      CALL DESINI
+      CALL WRITEDESSTATE('DESINI')
+      RETURN
+      END
+
+
+      SUBROUTINE RUNDEITER
+      INTEGER ICASE
+C
+      CALL PREPBASE
+      CALL PREPDESRUN
+      CALL DESINI
+      READ(*,*) ICASE
+      CALL DEITER(ICASE)
+      CALL WRITEDESSTATE('DEITER')
+      RETURN
+      END
+
+
+      SUBROUTINE RUNDESMIL
+      INTEGER ICASE
+C
+      CALL PREPBASE
+      CALL PREPDESRUN
+      CALL DESINI
+      READ(*,*) ICASE
+      CALL DESMIL(ICASE)
+      CALL WRITEDESSTATE('DESMIL')
+      RETURN
+      END
+
+
+      SUBROUTINE RUNSETCLDLINEAR
+      REAL CL1, CL2
+C
+      CALL PREPBASE
+      READ(*,*) CL1, CL2
+      CALL SETCLD(CL1,CL2)
+      CALL WRITEDESSTATE('SETCLD_LINEAR')
+      RETURN
+      END
+
+
+      SUBROUTINE RUNSETCLDFILE
+      CALL PREPBASE
+      CALL SETCLD(999.0,999.0)
+      CALL WRITEDESSTATE('SETCLD_FILE')
+      RETURN
+      END
+
+
+      SUBROUTINE RUNSAVCLD
+      CALL PREPBASE
+      CALL SAVCLD
+      WRITE(*,'(A)') 'RESULT SAVCLD'
+      RETURN
+      END
+
+
+      SUBROUTINE PREPBASE
+      INCLUDE 'XROTOR.INC'
+C
+      VERSION = 7.55
+      LUREAD = 5
+      LUWRIT = 6
+      LUTEMP = 35
+      LUSAVE = 36
+      CALL SETDEF
+C
+      NAME = 'XDESI DRIVER'
+      II = 5
+      NBLDS = 3
+      NAERO = 2
+      FAST = .FALSE.
+      FREE = .TRUE.
+      DUCT = .FALSE.
+      WIND = .FALSE.
+      VRTX = .FALSE.
+      DEST = .TRUE.
+      DESP = .FALSE.
+      LDESINI = .TRUE.
+      LROTOR = .FALSE.
+      NITERD = 12
+      NITERA = 12
+      ADWFCTR = 1.0
+      URDUCT = 1.0
+      PAR = 0.6
+      CSIZE = 0.014
+      SIZE = 10.0
+      SCRNFR = 0.70
+      IDEV = 1
+      IDEVRP = 2
+      IPSLU = 0
+      LPLOT = .FALSE.
+      LLAND = .TRUE.
+      LGRID = .TRUE.
+      XYOFF(1) = 0.0
+      XYOFF(2) = 0.0
+      XYFAC(1) = 1.0
+      XYFAC(2) = 1.0
+C
+      RADDES = 1.45
+      R0DES = 0.32
+      RWDES = 0.35
+      VELDES = 42.0
+      ADVDES = 0.69
+      RPMDES = 0.0
+      TDDES = 180.0
+      PDDES = 0.0
+      CLDES0 = 0.0
+      XITIP = 1.0
+      XI0 = R0DES / RADDES
+      XW0 = RWDES / RADDES
+      IINF = II + II/2
+C
+      CALL PUTAERO(1,0.28,-0.04,1.32,-1.05,
+     &             5.8,1.15,0.18,
+     &             0.010,0.28,0.020,-0.08,0.71,1.9E6,-0.14)
+      CALL PUTAERO(2,0.82,-0.025,1.18,-0.92,
+     &             5.5,1.00,0.16,
+     &             0.012,0.24,0.024,-0.06,0.68,2.2E6,-0.12)
+      CALL SETIAERO
+C
+      CALL SETX
+      CALL SETCLD(0.65,0.55)
+      RETURN
+      END
+
+
+      SUBROUTINE PREPDESRUN
+      INCLUDE 'XROTOR.INC'
+C
+      CONV = .FALSE.
+      RAD = RADDES
+      VEL = VELDES
+      IF(ADVDES.EQ.0.0) THEN
+       ADV = VELDES/(RADDES*RPMDES*PI/30.0)
+      ELSE
+       ADV = ADVDES
+      ENDIF
+      TDES = TDDES/(RHO*VEL**2*RAD**2)
+      PDES = PDDES/(RHO*VEL**3*RAD**2)
+      XI0 = R0DES/RAD
+      XW0 = RWDES/RAD
+      CALL SETX
+      CALL XWINIT
+      DO I=1, II
+        CL(I) = CLDES(I)
+        STALL(I) = .FALSE.
+      ENDDO
+      EFFINV = 1.0
+      IF(FREE.AND.DEST)
+     & EFFINV = 0.50*SQRT(ABS(1.0+TDES*2.0/PI)) + 0.50
+      IF(FREE.AND.DESP)
+     & EFFINV = 0.25*SQRT(ABS(1.0+PDES*4.0/PI)) + 0.75
+      ADW = EFFINV*ADV
+      RETURN
+      END
+
+
+      SUBROUTINE WRITEDESSTATE(LABEL)
+      INCLUDE 'XROTOR.INC'
+      CHARACTER*(*) LABEL
+      INTEGER I
+C
+      WRITE(*,'(A,1X,A)') 'RESULT', LABEL
+      IF(CONV) THEN
+        CALL WINT(1)
+      ELSE
+        CALL WINT(0)
+      ENDIF
+      CALL WINT(NBLDS)
+      CALL WINT(II)
+      CALL WREAL(RAD)
+      CALL WREAL(VEL)
+      CALL WREAL(ADV)
+      CALL WREAL(XI0)
+      CALL WREAL(XW0)
+      CALL WREAL(ADW)
+      CALL WREAL(EFFINV)
+      CALL WREAL(TDES)
+      CALL WREAL(PDES)
+      CALL WREAL(TTOT)
+      CALL WREAL(PTOT)
+      CALL WREAL(RADDES)
+      CALL WREAL(R0DES)
+      CALL WREAL(RWDES)
+      CALL WREAL(VELDES)
+      CALL WREAL(ADVDES)
+      CALL WREAL(RPMDES)
+      CALL WREAL(TDDES)
+      CALL WREAL(PDDES)
+      CALL WREAL(CLDES0)
+      DO I=1, II
+        CALL WREAL(CH(I))
+      ENDDO
+      DO I=1, II
+        CALL WREAL(BETA(I))
+      ENDDO
+      DO I=1, II
+        CALL WREAL(BETA0(I))
+      ENDDO
+      DO I=1, II
+        CALL WREAL(CLDES(I))
+      ENDDO
+      DO I=1, II
+        CALL WREAL(CL(I))
+      ENDDO
+      DO I=1, II
+        CALL WREAL(GAM(I))
+      ENDDO
+      DO I=1, II
+        CALL WREAL(XI(I))
+      ENDDO
+      DO I=1, II
+        CALL WREAL(DXI(I))
+      ENDDO
+      DO I=1, II
+        CALL WREAL(XW(I))
+      ENDDO
+      DO I=1, II
+        CALL WREAL(DXW(I))
+      ENDDO
+      RETURN
+      END
+
+
+      SUBROUTINE WREAL(X)
+      REAL X
+      WRITE(*,'(1X,ES24.16)') X
+      RETURN
+      END
+
+
+      SUBROUTINE WINT(I)
+      INTEGER I
+      WRITE(*,'(1X,I12)') I
+      RETURN
+      END

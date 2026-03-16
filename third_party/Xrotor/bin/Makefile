@@ -11,16 +11,17 @@ BINDIR = /home/codes/bin/
 ###  Default compilers and flags
 
 ### Default system
-FC = f77
-FFLAGS = -O
-FFLOPT = -O
+#FC = f77
+#FFLAGS = -O
+#FFLOPT = -O
 #FFLAGS = -g -C -O0
 #FFLOPT = -g -C -O0
 INSTALLCMD = install -s
 
 ###  Plot libraries and link libs
 
-PLTOBJ = -lPlt
+#PLTOBJ = -lPlt
+PLTOBJ = ../plotlib/libPltDP.a
 #PLTOBJ = ../plotlib/libPlt.a 
 #PLTOBJ = $(HOME)/lib/libPlt.a
 #PLTOBJ = /usr/local/lib/libPlt.a
@@ -39,14 +40,14 @@ LIBS = -lX11
 
 ##--------------------------
 ## Linux Intel ifort Fortran
-FC = ifort
-FFLAGS = -O -static
-FFLOPT = -O -static
-LIBS = -L/usr/X11R6/lib -lX11
-FTNLIB =
+#FC = ifort
+#FFLAGS = -O -static
+#FFLOPT = -O -static
+#LIBS = -L/usr/X11R6/lib -lX11
+#FTNLIB =
 #FTNLIB = -Vaxlib
 #PLTOBJ = $(HOME)/lib/libPltDP_ifort.a
-PLTOBJ = ../plotlib/libPlt.a
+#PLTOBJ = ../plotlib/libPlt.a
 
 ##--------------------------
 ## DEC Alpha with OSF and DEC f77/f90 compiler
@@ -76,12 +77,12 @@ PLTOBJ = ../plotlib/libPlt.a
 
 ##--------------------------
 ## Linux GNU g77
-#FC = g77
-#FFLAGS =  -O3 -fomit-frame-pointer
-#FFLOPT =  -O3 -fomit-frame-pointer
-#FFLAGS =  -g -O0 -C
-#FFLOPT =  -g -O0 -C
-#LIBS = -L/usr/X11R6/lib -lX11
+FC = gfortran
+#FFLAGS = -std=legacy -fallow-argument-mismatch -O3 -fomit-frame-pointer
+#FFLOPT = -std=legacy -fallow-argument-mismatch -O3 -fomit-frame-pointer
+FFLAGS = -std=legacy -fallow-argument-mismatch -g -O0 -C
+FFLOPT = -std=legacy -fallow-argument-mismatch -g -O0 -C
+LIBS = -L/usr/X11R6/lib -lX11
 
 ##--------------------------
 ## Linux pgf77

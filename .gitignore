@@ -1,2 +1,5 @@
 /build/
 *.mod
+*.o
+*.a
+third_party/Xrotor/bin/*

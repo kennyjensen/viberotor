@@ -11,21 +11,32 @@
 </head>
 <body>
   <header class="app-header">
-    <div class="brand"><span class="brand-mark">Vr</span><div><h1>VibeRotor</h1><span class="brand-sub"><a href="https://web.mit.edu/drela/Public/web/xrotor/" target="_blank" rel="noopener">XROTOR</a> WORKBENCH</span></div></div>
+    <div class="brand"><span class="brand-mark">Vr</span><div><h1>VibeRotor</h1><span class="brand-sub">An interactive propeller designer based on <a href="https://web.mit.edu/drela/Public/web/xrotor/" target="_blank" rel="noopener">XROTOR</a></span></div></div>
     <div class="document-title"><span id="headerName">Three-blade baseline</span><span id="dirtyTag" class="tag" hidden>Modified</span></div>
-    <nav class="related-apps" aria-label="Related tools"><a href="https://www.vibefoil.com" target="_blank" rel="noopener">Vf<span>Vibefoil</span></a><a href="https://avl.vibefoil.com" target="_blank" rel="noopener">Vl<span>VibeLattice</span></a></nav>
-    <div class="file-actions">
-      <button class="icon-button" id="openFile" title="Open rotor project (.json)" aria-label="Open rotor project"><i data-lucide="folder-open"></i></button>
-      <button class="icon-button" id="saveFile" title="Save rotor project" aria-label="Save rotor project"><i data-lucide="save"></i></button>
+    <nav class="related-apps" aria-label="Related tools">
+      <a href="https://www.vibefoil.com/" target="_blank" rel="noopener noreferrer" aria-label="Vibefoil" title="Vibefoil">Vf</a>
+      <a href="https://avl.vibefoil.com/" target="_blank" rel="noopener noreferrer" aria-label="VibeLattice" title="VibeLattice">Vl</a>
+      <a href="https://sim.vibefoil.com/" target="_blank" rel="noopener noreferrer" aria-label="VibeSim" title="VibeSim">Vs</a>
+      <a href="https://alula.vibefoil.com/" target="_blank" rel="noopener noreferrer" aria-label="Alula" title="Alula">Al</a>
+      <a href="https://openswing.vibefoil.com/" target="_blank" rel="noopener noreferrer" aria-label="OpenSwing" title="OpenSwing">Os</a>
+    </nav>
+    <div class="github-star github-star--desktop">
+      <a class="github-button" href="https://github.com/kennyjensen/viberotor" target="_blank" rel="noopener"
+        data-color-scheme="no-preference: dark; light: dark; dark: dark;" data-icon="octicon-star"
+        data-size="large" data-show-count="true" aria-label="Star kennyjensen/viberotor on GitHub">Star</a>
     </div>
-    <input type="file" id="fileInput" accept=".json,application/json" hidden>
   </header>
   <nav class="mobile-tabs" aria-label="Workspace panels"><button data-panel="setup">Setup</button><button data-panel="workspace" class="active">Workspace</button><button data-panel="results">Results</button></nav>
   <main class="workbench" data-panel="workspace">
     <aside class="setup" aria-label="Rotor setup">
       <div class="section-heading"><span>ROTOR SETUP</span><button class="icon-button" id="reset" title="Reset to baseline" aria-label="Reset to baseline"><i data-lucide="rotate-ccw"></i></button></div>
+      <input type="file" id="fileInput" accept=".json,application/json" hidden>
       <form id="rotorForm">
         <section class="control-section">
+          <div class="file-actions">
+            <button class="secondary" type="button" id="openFile" title="Open rotor project (.json)" aria-label="Open rotor project"><i data-lucide="folder-open"></i>Open</button>
+            <button class="secondary" type="button" id="saveFile" title="Save rotor project" aria-label="Save rotor project"><i data-lucide="save"></i>Save</button>
+          </div>
           <label class="stacked" for="preset">Rotor<select id="preset"><option value="baseline">Three-blade baseline</option><option value="two">Two-blade propeller</option><option value="compact">Compact propeller</option><option value="custom" hidden>Custom rotor</option></select></label>
           <p id="exampleNote" hidden>Example geometry and operating point. Default airfoil and inflow models.</p>
           <label class="stacked name-field" for="name">Case name<input id="name" name="name" type="text" maxlength="80" value="Three-blade baseline"></label>
@@ -74,6 +85,11 @@
         </details>
         <div class="solve-dock"><button type="submit" id="solve" class="primary"><i data-lucide="play"></i><span>Run analysis</span></button><button id="cancel" class="secondary" type="button" hidden><i data-lucide="square"></i>Cancel</button></div>
       </form>
+      <div class="github-star github-star--mobile">
+        <a class="github-button" href="https://github.com/kennyjensen/viberotor" target="_blank" rel="noopener"
+          data-color-scheme="no-preference: dark; light: dark; dark: dark;" data-icon="octicon-star"
+          data-size="large" data-show-count="true" aria-label="Star kennyjensen/viberotor on GitHub">Star</a>
+      </div>
     </aside>
     <section class="workspace" aria-label="Geometry and analysis workspace">
       <div class="workspace-nav"><div class="tabs" role="tablist" aria-label="Analysis views"><button id="tab-rotor" role="tab" aria-selected="true" aria-controls="view-rotor" data-view="rotor" class="active"><i data-lucide="box"></i>Rotor</button><button id="tab-performance" role="tab" aria-selected="false" aria-controls="view-performance" data-view="performance"><i data-lucide="chart-no-axes-combined"></i>Performance</button><button id="tab-noise" role="tab" aria-selected="false" aria-controls="view-noise" data-view="noise"><i data-lucide="audio-lines"></i>Acoustics</button></div><span class="engine-label" id="engineLabel">WASM / FLOAT64</span></div>
@@ -120,5 +136,6 @@
   <dialog id="confirmReset"><form method="dialog"><h2>Reset this rotor?</h2><p>Unsaved geometry and inputs will be replaced by the baseline rotor.</p><div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button value="reset" class="primary">Reset rotor</button></div></form></dialog>
   <noscript>This workbench requires JavaScript.</noscript>
   <script type="module" src="./dist/app.js"></script>
+  <script async defer src="https://buttons.github.io/buttons.js"></script>
 </body>
 </html>

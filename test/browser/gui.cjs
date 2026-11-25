@@ -32,6 +32,34 @@ async function assertLayout(page) {
     return node.getBoundingClientRect().right > node.parentElement.getBoundingClientRect().right + 1;
   }).length);
   assert.equal(overlaps, 0, 'Metric values must fit');
+  const layout = await page.locator('.related-apps').evaluate(nav => {
+    const header = document.querySelector('.app-header').getBoundingClientRect();
+    const brand = document.querySelector('.brand h1').parentElement.getBoundingClientRect();
+    const star = document.querySelector('.github-star--desktop').getBoundingClientRect();
+    const grid = nav.getBoundingClientRect();
+    const tiles = [...nav.querySelectorAll('a')].map(link => {
+      const tile = link.getBoundingClientRect();
+      return {
+        top: tile.top,
+        left: tile.left,
+        square: tile.width > 0 && tile.width === tile.height,
+      };
+    });
+    return {
+      tiles,
+      fits: brand.right <= grid.left && grid.right <= (star.width ? star.left : header.right) &&
+        grid.top >= header.top && grid.bottom <= header.bottom,
+      centerDifference: Math.abs((grid.top + grid.bottom - brand.top - brand.bottom) / 2),
+      heightDifference: Math.abs(grid.height - brand.height),
+    };
+  });
+  const { tiles } = layout;
+  assert.ok(layout.fits, 'Tool grid must fit between the title and the Star button or header edge');
+  assert.ok(layout.centerDifference <= 1 && layout.heightDifference <= 7, 'Tool grid should align with the title stack');
+  assert.ok(tiles.every(tile => tile.square), 'Tool tiles must be square');
+  assert.deepEqual(tiles.map(tile => tile.top === tiles[0].top), [true, true, true, false, false]);
+  assert.equal(tiles[3].top, tiles[4].top, 'The last two tiles must share a row');
+  assert.deepEqual(tiles.slice(3).map(tile => tile.left), tiles.slice(0, 2).map(tile => tile.left));
 }
 
 async function main() {
@@ -57,6 +85,8 @@ async function main() {
       args: ['--no-sandbox', '--use-gl=angle', '--use-angle=' + (process.env.CHROMIUM_ANGLE || 'swiftshader'), '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'],
     });
     const page = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+    // Keep the layout and fallback tests independent of the external widget and API.
+    await page.route('https://buttons.github.io/buttons.js', route => route.fulfill({ body: '' }));
     page.setDefaultTimeout(15000);
     const errors = [];
     const wasmResponses = [];
@@ -65,6 +95,32 @@ async function main() {
     page.on('console', msg => { if (msg.type() === 'error' && !msg.text().includes('404')) errors.push(msg.text()); });
     const url = 'http://127.0.0.1:' + server.address().port;
     await page.goto(url);
+    const desktopStar = page.locator('.app-header .github-star--desktop');
+    const mobileStar = page.locator('.setup .github-star--mobile');
+    await expect(desktopStar).toBeVisible();
+    await expect(mobileStar).toBeHidden();
+    for (const placement of [desktopStar, mobileStar]) {
+      const button = placement.getByRole('link', { name: 'Star kennyjensen/viberotor on GitHub', includeHidden: true });
+      await expect(button).toHaveAttribute('href', 'https://github.com/kennyjensen/viberotor');
+      await expect(button).toHaveAttribute('data-size', 'large');
+      await expect(button).toHaveAttribute('data-show-count', 'true');
+    }
+    await expect(page.locator('.setup #openFile')).toBeVisible();
+    await expect(page.locator('.setup #saveFile')).toBeVisible();
+    const tools = page.getByRole('navigation', { name: 'Related tools' });
+    for (const [name, href] of [
+      ['Vibefoil', 'https://www.vibefoil.com/'],
+      ['VibeLattice', 'https://avl.vibefoil.com/'],
+      ['VibeSim', 'https://sim.vibefoil.com/'],
+      ['Alula', 'https://alula.vibefoil.com/'],
+      ['OpenSwing', 'https://openswing.vibefoil.com/'],
+    ]) {
+      const link = tools.getByRole('link', { name, exact: true });
+      await expect(link).toHaveAttribute('href', href);
+      await expect(link).toHaveAttribute('target', '_blank');
+      await expect(link).toHaveAttribute('title', name);
+    }
+    await expect(page.locator('.brand-sub')).toHaveText('An interactive propeller designer based on XROTOR');
     await expect(page.locator('.brand-sub').getByRole('link', { name: 'XROTOR' }))
       .toHaveAttribute('href', 'https://web.mit.edu/drela/Public/web/xrotor/');
     const licenseLink = page.getByRole('link', { name: 'License & source' });
@@ -161,7 +217,9 @@ async function main() {
     await page.locator('#fileInput').setInputFiles({ name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{"format":"viberotor","version":1,"config":{"radius":0}}') });
     await expect(page.locator('#message')).toContainText('radius must be');
     await expect(page.locator('[name=radius]')).toHaveValue('1.4');
-    await page.locator('#fileInput').setInputFiles({ name: 'rotor.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
+    const fileChooser = page.waitForEvent('filechooser');
+    await page.locator('.setup #openFile').click();
+    await (await fileChooser).setFiles({ name: 'rotor.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(project)) });
     await expect(page.locator('#thrust')).toHaveText('600N');
     await page.locator('#preset').selectOption('baseline');
     await expect(page.locator('#thrust')).toHaveText('1,644N');
@@ -225,6 +283,8 @@ async function main() {
       await page.setViewportSize({ width, height: width <= 620 ? 844 : 960 });
       await page.waitForTimeout(400);
       await assertLayout(page);
+      if (width <= 900) await expect(desktopStar).toBeHidden();
+      else await expect(desktopStar).toBeVisible();
       const rendered = await canvasPixels(page);
       assert.ok(rendered.bright > 150 && rendered.colors > 100, JSON.stringify({ width, ...rendered }));
       await page.screenshot({ path: path.join(artifacts, 'gui-' + width + '.png'), fullPage: true });
@@ -235,7 +295,15 @@ async function main() {
         await page.screenshot({ path: path.join(artifacts, 'gui-results-' + width + '.png'), fullPage: true });
         await page.locator('.mobile-tabs [data-panel=setup]').click();
         await expect(page.locator('#solve')).toBeVisible();
+        await expect(page.locator('.setup #openFile')).toBeVisible();
+        await expect(page.locator('.setup #saveFile')).toBeVisible();
+        await expect(mobileStar).toBeVisible();
         await page.screenshot({ path: path.join(artifacts, 'gui-setup-' + width + '.png'), fullPage: true });
+        if (width === 390) {
+          await mobileStar.scrollIntoViewIfNeeded();
+          await expect(mobileStar).toBeInViewport();
+          await page.screenshot({ path: path.join(artifacts, 'gui-setup-star-390.png') });
+        }
         await page.locator('.mobile-tabs [data-panel=workspace]').click();
       }
     }
@@ -247,6 +315,7 @@ async function main() {
     assert.ok(messageBounds.y + messageBounds.height <= workspaceBounds.y + workspaceBounds.height + 1, 'Short mobile layout must not clip status');
     assert.deepEqual(errors, []);
     const unavailable = await browser.newPage({ viewport: { width: 1440, height: 960 } });
+    await unavailable.route('https://buttons.github.io/buttons.js', route => route.fulfill({ body: '' }));
     await unavailable.route('**/xrotor.wasm', route => route.abort());
     await unavailable.goto(url);
     await expect(unavailable.locator('#message')).toContainText('WASM could not load');

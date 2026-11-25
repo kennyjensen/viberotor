@@ -43,6 +43,7 @@ on pushes to `master` and can also be run manually from the Actions tab.
    provisions the certificate.
 
 The deployed site includes [the corresponding source archive](https://xrotor.vibefoil.com/viberotor-source.tar.gz).
+Google Analytics (GA4) loads only on `xrotor.vibefoil.com`, not in local previews.
 
 ## Workbench
 

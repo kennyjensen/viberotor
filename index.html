@@ -3,6 +3,21 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <script id="google-analytics">
+    (() => {
+      if (window.location.hostname !== 'xrotor.vibefoil.com') return;
+      const measurementId = 'G-LET28V8SDG';
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function () { window.dataLayer.push(arguments); };
+      window.gtag('js', new Date());
+      window.gtag('config', measurementId, { allow_google_signals: false, allow_ad_personalization_signals: false });
+
+      const script = document.createElement('script');
+      script.async = true;
+      script.src = 'https://www.googletagmanager.com/gtag/js?id=' + measurementId;
+      document.head.append(script);
+    })();
+  </script>
   <meta name="theme-color" content="#141617">
   <meta name="description" content="An interactive rotor design and analysis workbench powered by XROTOR and Xnoise, with double-precision WebAssembly and JavaScript backends.">
   <title>VibeRotor | Rotor Workbench</title>

@@ -24,6 +24,21 @@ need no numerical compiler. To rebuild it, install `f2c` and Emscripten and run
 `npm run build:wasm`. `F2C` and `EMCC` can specify their executable paths. See
 [`wasm/README.md`](wasm/README.md) for tool versions, source adaptations, and scope.
 
+## GitHub Pages
+
+The [Pages workflow](.github/workflows/pages.yml) builds and publishes `dist/`
+on pushes to `master` and can also be run manually from the Actions tab.
+
+1. In **Settings → Pages**, set **Source** to **GitHub Actions**. GitHub Pages
+   requires a public repository or a plan that supports Pages for private repos.
+2. Set **Custom domain** to `xrotor.vibefoil.com`. The DNS record should be
+   `xrotor.vibefoil.com CNAME kennyjensen.github.io`, with no repository path.
+   GitHub recommends verifying the domain in account settings before claiming it.
+3. Run the deployment workflow and enable **Enforce HTTPS** once GitHub
+   provisions the certificate.
+
+The deployed site includes [the corresponding source archive](https://xrotor.vibefoil.com/viberotor-source.tar.gz).
+
 ## Workbench
 
 - Operate a prescribed rotor or design for thrust or shaft power with DESGEN.

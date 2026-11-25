@@ -1,9 +1,10 @@
 # VibeRotor
 
-A browser workbench for [XROTOR](https://web.mit.edu/drela/Public/web/xrotor/), the rotor
-design and analysis program created by **Mark Drela** and developed with
-**Harold Youngren**. The aerodynamic and acoustic methods come from the original
-XROTOR and Xnoise Fortran; VibeRotor provides the browser interface and ports.
+[VibeRotor](https://xrotor.vibefoil.com/) is a browser workbench for
+[XROTOR](https://web.mit.edu/drela/Public/web/xrotor/), the rotor design and analysis
+program created by **Mark Drela** and developed with **Harold Youngren**. The
+aerodynamic and acoustic methods come from the original XROTOR and Xnoise Fortran;
+VibeRotor provides the browser interface and ports.
 
 The workbench includes a Three.js rotor view, plots, station tables, and a
 cancellable solver worker. The default WebAssembly backend is compiled from

@@ -40,7 +40,7 @@ jobs:
         run: |
           git archive --format=tar.gz --prefix=viberotor/ \
             --output=dist/viberotor-source.tar.gz HEAD -- \
-            README.md index.html package.json package-lock.json js ui scripts \
+            README.md index.html favicon.ico package.json package-lock.json js ui scripts \
             third_party/Xrotor/src third_party/Xrotor/runs third_party/libf2c wasm
       - uses: actions/upload-pages-artifact@v4
         with:

@@ -41,7 +41,7 @@ The bundled libf2c runtime was retrieved from
 https://netlib.org/f2c/libf2c.zip on 2026-11-24. Archive SHA-256:
 `cc84253b47b5c036aa1d529332a6c218a39ff71c76974296262b03776f822695`.
 Its license is in `third_party/libf2c/Notice`. XROTOR retains its upstream
-GPL-2.0-or-later license; see `COPYING`. Distributions of the binary must also
+GPL-2.0-or-later license; see the [root license](../LICENSE). Distributions of the binary must also
 provide the corresponding source and build scripts from this repository.
 
 Parity results and precision limits are recorded in `PORT_AUDIT.md`.

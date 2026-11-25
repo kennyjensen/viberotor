@@ -28,12 +28,19 @@ function assets() {
     if (actual !== expected) throw new Error('WASM sources changed (' + file + '). Run npm run build:wasm.');
   }
   fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
-  fs.writeFileSync(path.join(root, 'dist/index.html'), fs.readFileSync(path.join(root, 'index.html'), 'utf8').replace('./dist/app.js', './app.js').replace('./ui/styles.css', './styles.css'));
+  fs.writeFileSync(path.join(root, 'dist/index.html'), fs.readFileSync(path.join(root, 'index.html'), 'utf8').replace('./dist/app.js', './app.js').replace('./dist/generated/licenses.html', './generated/licenses.html').replace('./ui/styles.css', './styles.css'));
   fs.copyFileSync(path.join(root, 'ui/styles.css'), path.join(root, 'dist/styles.css'));
   fs.copyFileSync(path.join(root, 'favicon.ico'), path.join(root, 'dist/favicon.ico'));
   fs.cpSync(path.join(root, 'wasm/generated'), path.join(root, 'dist/generated'), { recursive: true });
   fs.copyFileSync(path.join(root, 'third_party/libf2c/Notice'), path.join(root, 'dist/generated/libf2c-Notice.txt'));
-  fs.copyFileSync(path.join(root, 'wasm/COPYING'), path.join(root, 'dist/generated/XROTOR-COPYING.txt'));
+  fs.copyFileSync(path.join(root, 'LICENSE'), path.join(root, 'dist/generated/XROTOR-COPYING.txt'));
+  fs.copyFileSync(path.join(root, 'licenses/index.html'), path.join(root, 'dist/generated/licenses.html'));
+  for (const name of ['Emscripten', 'musl', 'Feather']) {
+    fs.copyFileSync(path.join(root, 'licenses', name + '.txt'), path.join(root, 'dist/generated', name + '.txt'));
+  }
+  for (const name of ['three', 'lucide']) {
+    fs.copyFileSync(path.join(root, 'node_modules', name, 'LICENSE'), path.join(root, 'dist/generated', name + '-LICENSE.txt'));
+  }
 }
 if (require.main === module) esbuild.build({ ...options, minify: true }).then(assets).catch(error => { console.error(error.message); process.exitCode = 1; });
 module.exports = { options, assets };

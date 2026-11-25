@@ -1,10 +1,15 @@
 # VibeRotor
 
-A browser workbench for XROTOR and Xnoise with a Three.js rotor view, plots,
-station tables, and a cancellable solver worker. The default WebAssembly backend
-is compiled from the original Fortran, not from the JavaScript port. Both use
-double precision. Select JavaScript under **Atmosphere & solver** to compare
-backends; a WASM load failure is reported rather than silently switching engines.
+A browser workbench for [XROTOR](https://web.mit.edu/drela/Public/web/xrotor/), the rotor
+design and analysis program created by **Mark Drela** and developed with
+**Harold Youngren**. The aerodynamic and acoustic methods come from the original
+XROTOR and Xnoise Fortran; VibeRotor provides the browser interface and ports.
+
+The workbench includes a Three.js rotor view, plots, station tables, and a
+cancellable solver worker. The default WebAssembly backend is compiled from
+the original Fortran, not from the JavaScript port. Both use double precision.
+Select JavaScript under **Atmosphere & solver** to compare backends; a WASM
+load failure is reported rather than silently switching engines.
 
 ## Run
 
@@ -98,3 +103,19 @@ system libraries must also be installed. These browser settings affect tests,
 not the application.
 
 Numerical comparisons and their limits are recorded in [`PORT_AUDIT.md`](PORT_AUDIT.md).
+
+## License
+
+VibeRotor's code is licensed under **GPL-2.0-or-later**. See [LICENSE](LICENSE)
+for the full GPL version 2 text. The original XROTOR and Xnoise code by Mark
+Drela and Harold Youngren retains the notices in
+[`third_party/Xrotor/src`](third_party/Xrotor/src). The bundled legacy plotting
+library has its own [Library GPL terms](third_party/Xrotor/plotlib/GPL-library)
+and is not linked into the browser build.
+
+Third-party components retain their own terms, including
+[libf2c](third_party/libf2c/Notice), [Emscripten](licenses/Emscripten.txt),
+[musl](licenses/musl.txt), Three.js (MIT), and Lucide (ISC, with portions
+derived from Feather under MIT). The deployed app's
+[License & source page](https://xrotor.vibefoil.com/generated/licenses.html)
+links to these notices and the corresponding source archive.

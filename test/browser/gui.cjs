@@ -65,6 +65,17 @@ async function main() {
     page.on('console', msg => { if (msg.type() === 'error' && !msg.text().includes('404')) errors.push(msg.text()); });
     const url = 'http://127.0.0.1:' + server.address().port;
     await page.goto(url);
+    await expect(page.locator('.brand-sub').getByRole('link', { name: 'XROTOR' }))
+      .toHaveAttribute('href', 'https://web.mit.edu/drela/Public/web/xrotor/');
+    const licenseLink = page.getByRole('link', { name: 'License & source' });
+    await expect(licenseLink).toBeVisible();
+    const licensePage = new URL(await licenseLink.getAttribute('href'), url);
+    const notices = await page.request.get(licensePage.href);
+    assert.ok(notices.ok());
+    assert.match(await notices.text(), /GPL-2\.0-or-later/);
+    for (const name of ['XROTOR-COPYING.txt', 'libf2c-Notice.txt', 'Emscripten.txt', 'musl.txt', 'three-LICENSE.txt', 'lucide-LICENSE.txt', 'Feather.txt']) {
+      assert.ok((await page.request.get(new URL(name, licensePage).href)).ok(), name + ' is served');
+    }
     await expect(page.locator('#solutionStatus')).toHaveText('Converged');
     await expect(page.locator('#stationRows tr')).toHaveCount(30);
     await expect(page.locator('#thrust')).toHaveText('1,644N');

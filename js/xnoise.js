@@ -1,3 +1,6 @@
+/*! SPDX-License-Identifier: GPL-2.0-or-later
+ * Original Fortran copyright (C) 2011 Mark Drela. JavaScript port: 2026-03-10.
+ */
 'use strict';
 
 // Direct numerical port of third_party/Xrotor/src/xnoise.f.

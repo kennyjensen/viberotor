@@ -5,6 +5,8 @@ const assert = require('node:assert/strict');
 
 const xoper = require('../js/xoper.js');
 const xaero = require('../js/xaero.js');
+const { SPLINE } = require('../js/spline.js');
+const { operatingState } = require('./helpers/port-audit-state.js');
 const {
   compileFortranDriver,
   runAper,
@@ -315,6 +317,22 @@ test('TPQ matches Fortran for fixed-chord design mode', () => {
   }
 });
 
+test('TPQ preserves original ADW sensitivities in all analysis and design modes', () => {
+  for (const duct of [false, true]) {
+    for (const itype of [1, 2, 3]) {
+      const state = buildDesignState();
+      state.DUCT = duct;
+      const expected = runTpq(state, itype);
+      xoper.VCALC(state);
+      xoper.SETXW(state);
+      xoper.TPQ(state, itype);
+      for (const field of ['TI_ADW', 'PI_ADW', 'TW_ADW', 'PW_ADW', 'TV_ADW', 'PV_ADW']) {
+        assertClose(state[field], expected[field], `TPQ${itype}, duct=${duct}.${field}`, 2e-7, 2e-7);
+      }
+    }
+  }
+});
+
 test('APINIT matches Fortran', () => {
   const actualState = buildBaseState();
   const actual = xoper.APINIT(actualState);
@@ -386,6 +404,46 @@ test('APER matches Fortran for thrust, torque, and power target branches', () =>
     }
     for (const field of ['BETA', 'GAM', 'CL', 'CD']) {
       assertVectorClose(sliceVector(actualState[field], actualState.II), expected[field], `${scenario.label}.${field}`, 1e-6, 1e-6);
+    }
+  }
+});
+
+test('APER matches Fortran when iterations are disabled or exhausted', () => {
+  for (const NITERA of [0, 1]) {
+    const state = buildBaseState({ NITERA });
+    const expected = runAper(state, 4, 2, true);
+    const result = xoper.APER(state, 4, 2, true);
+    assert.equal(result.converged, false);
+    assert.equal(result.converged, expected.CONV);
+    for (const field of ['ADV', 'ADW', 'RMS', 'RLX', 'TTOT', 'PTOT', 'QTOT']) {
+      assertClose(state[field], expected[field], `${NITERA}.${field}`, 1e-6, 1e-6);
+    }
+    assertVectorClose(state.GAM.slice(0, state.II), expected.GAM, `${NITERA}.GAM`);
+  }
+});
+
+test('APER matches Fortran with varying engine power and both operating constraints', () => {
+  const base = operatingState(5, 'graded', true);
+  assert.equal(xoper.APER(base, 4, 2, true).converged, true);
+  const rpm = base.VEL / (base.RAD * base.ADV * xoper.PI / 30);
+  const power = base.PTOT * base.RHO * base.VEL ** 3 * base.RAD ** 2;
+  for (const icon of [1, 2]) {
+    const state = cloneState(base);
+    state.NITERA = 40;
+    state.LPWRVAR = true;
+    state.NPWRVAR = 3;
+    state.RPMVAR.set([0.8 * rpm, rpm, 1.2 * rpm]);
+    state.PWRVAR.set([0.7 * power, 1.08 * power, 1.5 * power]);
+    SPLINE(state.PWRVAR, state.XPWRVAR, state.RPMVAR, state.NPWRVAR);
+    const expected = runAper(state, 5, icon, false);
+    const result = xoper.APER(state, 5, icon, false);
+    assert.equal(result.converged, true);
+    assert.equal(result.converged, expected.CONV);
+    for (const field of ['ADV', 'ADW', 'DBETA', 'TTOT', 'PTOT', 'QTOT', 'PSPEC']) {
+      assertClose(state[field], expected[field], `power-line ${icon}.${field}`, 1e-6, 1e-6);
+    }
+    for (const field of ['BETA', 'GAM', 'CL', 'CD']) {
+      assertVectorClose(state[field].slice(0, state.II), expected[field], `power-line ${icon}.${field}`, 1e-6, 1e-6);
     }
   }
 });

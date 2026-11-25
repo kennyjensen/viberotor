@@ -2,7 +2,20 @@
   "name": "viberotor",
   "private": true,
   "scripts": {
+    "dev": "node scripts/dev.cjs",
+    "build": "node scripts/build.cjs",
+    "build:wasm": "node scripts/build-wasm.cjs",
+    "test:wasm": "node --test test/wasm*.test.js",
+    "test:ui": "node test/browser/gui.cjs",
     "build:fortran-xnoise": "node test/helpers/fortran-xnoise.js --build",
     "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "lucide": "0.468.0",
+    "three": "0.180.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.56.1",
+    "esbuild": "0.25.12"
   }
 }

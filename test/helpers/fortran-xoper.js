@@ -111,8 +111,7 @@ function compileFortranDriver() {
   return driverPath;
 }
 
-function runDriver(command, input) {
-  const binary = compileFortranDriver();
+function runDriver(command, input, binary = compileFortranDriver()) {
   return execFileSync(binary, [command], {
     cwd: repoRoot,
     encoding: 'utf8',
@@ -185,6 +184,11 @@ function xoperStateInput(state) {
 
   lines.push(tensor3(state.VIND_GAM ?? Array.from({ length: 3 }, () => Array.from({ length: ii }, () => new Float64Array(ii))), 3, ii, ii));
   lines.push(matrix(state.VIND_ADW ?? Array.from({ length: 3 }, () => new Float64Array(ii)), 3, ii));
+  const npwrvar = state.NPWRVAR ?? 0;
+  lines.push(`${state.LPWRVAR ? 1 : 0} ${npwrvar}`);
+  if (npwrvar > 0) {
+    for (const field of ['RPMVAR', 'PWRVAR', 'XPWRVAR']) lines.push(vector(state[field].slice(0, npwrvar)));
+  }
   lines.push('');
   return lines.join('\n');
 }
@@ -304,7 +308,7 @@ function runTpq(state, itype) {
   const indexRef = { index: 0 };
   const ii = nextInteger(tokens, indexRef);
   const out = {};
-  for (const name of ['TINV', 'PINV', 'TWAK', 'PWAK', 'TVIS', 'PVIS', 'TTOT', 'PTOT', 'QTOT', 'TI_ADV', 'PI_ADV', 'TW_ADV', 'PW_ADV', 'TV_ADV', 'PV_ADV', 'TV_DBE', 'PV_DBE']) {
+  for (const name of ['TINV', 'PINV', 'TWAK', 'PWAK', 'TVIS', 'PVIS', 'TTOT', 'PTOT', 'QTOT', 'TI_ADV', 'PI_ADV', 'TW_ADV', 'PW_ADV', 'TV_ADV', 'PV_ADV', 'TV_DBE', 'PV_DBE', 'TI_ADW', 'PI_ADW', 'TW_ADW', 'PW_ADW', 'TV_ADW', 'PV_ADW']) {
     out[name] = nextNumber(tokens, indexRef);
   }
   for (const field of ['CH', 'BETA', 'BETA0', 'CL', 'CD', 'CM', 'RE', 'EFFP', 'DTII', 'DPII', 'DTWI', 'DPWI', 'DTVI', 'DPVI', 'TI_GAM', 'PI_GAM', 'TW_GAM', 'PW_GAM', 'TV_GAM', 'PV_GAM']) {
@@ -332,7 +336,7 @@ function runApinit(state) {
   return { II: ii, ...out };
 }
 
-function runAper(state, ispec, icon, linit) {
+function runAper(state, ispec, icon, linit, binary) {
   const input = [
     xoperStateInput(state),
     `${scalar(ispec)}`,
@@ -340,7 +344,7 @@ function runAper(state, ispec, icon, linit) {
     `${linit ? 1 : 0}`,
     '',
   ].join('\n');
-  const tokens = resultTokens(runDriver('aper', input));
+  const tokens = resultTokens(runDriver('aper', input, binary));
   const indexRef = { index: 0 };
   const ii = nextInteger(tokens, indexRef);
   const out = {
@@ -371,6 +375,7 @@ function runAper(state, ispec, icon, linit) {
     }
     out[field] = values;
   }
+  out.PSPEC = nextNumber(tokens, indexRef);
   return { II: ii, ...out };
 }
 

@@ -1403,7 +1403,8 @@ function TPQ(state, ITYPE) {
     const DTV_VA = DTV_CD * CD_VA + DTV_CH * CH_VA + DTV_SI * c.SI_VA + DTV_W * c.W_VA;
     state.TVIS += DTV;
     state.TV_ADV += DTV_ADV;
-    state.TV_ADW += DTV_VT * c.VT_ADW + DTV_VA * c.VA_ADW;
+    // The original TPQ overwrites these two ADW sensitivities per station.
+    state.TV_ADW = DTV_VT * c.VT_ADW + DTV_VA * c.VA_ADW;
     state.TV_DBE += DTV_DBE;
     state.TV_GAM[i - 1] += DTV_GI;
     for (let j = 1; j <= state.II; j += 1) {
@@ -1422,7 +1423,7 @@ function TPQ(state, ITYPE) {
     const DPV_VA = DPV_CD * CD_VA + DPV_CH * CH_VA + DPV_W * c.W_VA;
     state.PVIS += DPV;
     state.PV_ADV += DPV_ADV;
-    state.PV_ADW += DPV_VT * c.VT_ADW + DPV_VA * c.VA_ADW;
+    state.PV_ADW = DPV_VT * c.VT_ADW + DPV_VA * c.VA_ADW;
     state.PV_DBE += DPV_DBE;
     state.PV_GAM[i - 1] += DPV_GI;
     for (let j = 1; j <= state.II; j += 1) {

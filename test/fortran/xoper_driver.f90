@@ -527,6 +527,7 @@ contains
     integer :: fast_flag
     integer :: free_flag
     integer :: vrtx_flag
+    integer :: power_flag
 
     call reset_state()
 
@@ -567,6 +568,13 @@ contains
       call read_matrix(VIND_ADW, 3, II)
       XI0 = XV(1)
       XITIP = XV(II + 1)
+    end if
+    read(*,*) power_flag, NPWRVAR
+    LPWRVAR = power_flag /= 0
+    if (NPWRVAR > 0) then
+      call read_vector(RPMVAR, NPWRVAR)
+      call read_vector(PWRVAR, NPWRVAR)
+      call read_vector(XPWRVAR, NPWRVAR)
     end if
   end subroutine load_state
 
@@ -746,6 +754,12 @@ contains
     call write_real_value(PV_ADV)
     call write_real_value(TV_DBE)
     call write_real_value(PV_DBE)
+    call write_real_value(TI_ADW)
+    call write_real_value(PI_ADW)
+    call write_real_value(TW_ADW)
+    call write_real_value(PW_ADW)
+    call write_real_value(TV_ADW)
+    call write_real_value(PV_ADW)
     call write_vector(CH, II)
     call write_vector(BETA, II)
     call write_vector(BETA0, II)
@@ -829,6 +843,7 @@ contains
     call write_vector(CD, II)
     call write_vector(CM, II)
     call write_vector(DGAMOLD, II)
+    call write_real_value(PSPEC)
   end subroutine run_aper
 end program xoper_driver
 

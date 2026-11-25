@@ -2,6 +2,7 @@
 
 const fs = require('node:fs');
 
+const xoper = require('./xoper.js');
 const { SEGSPL, SEVAL } = require('./spline.js');
 
 const IX = 100;
@@ -45,27 +46,15 @@ function allocateRhs(ii) {
 
 function createState(overrides = {}) {
   return {
-    II: overrides.II ?? 0,
-    RAD: overrides.RAD ?? 1.0,
-    VEL: overrides.VEL ?? 1.0,
+    ...xoper.createState(overrides),
+    ...createStructuralState(overrides),
     RHO: overrides.RHO ?? 1.0,
-    ADV: overrides.ADV ?? 1.0,
-    RAKE: overrides.RAKE ?? 0.0,
-    CONV: Boolean(overrides.CONV),
-    LSTRUC: Boolean(overrides.LSTRUC),
-    SIZE: overrides.SIZE ?? 1.0,
-    SCRNFR: overrides.SCRNFR ?? 1.0,
     LLAND: Boolean(overrides.LLAND),
-    INCR: overrides.INCR ?? 1,
-    LUWRIT: overrides.LUWRIT ?? 6,
-    XI: copyFloat64(IX, overrides.XI),
-    DXI: copyFloat64(IX, overrides.DXI),
-    CH: copyFloat64(IX, overrides.CH),
-    BETA: copyFloat64(IX, overrides.BETA),
-    BETA0: copyFloat64(IX, overrides.BETA0),
-    CL: copyFloat64(IX, overrides.CL),
-    CD: copyFloat64(IX, overrides.CD),
-    CM: copyFloat64(IX, overrides.CM),
+  };
+}
+
+function createStructuralState(overrides = {}) {
+  return {
     EIXXB: copyFloat64(IX, overrides.EIXXB),
     EIYYB: copyFloat64(IX, overrides.EIYYB),
     EAB: copyFloat64(IX, overrides.EAB),
@@ -103,61 +92,12 @@ function createState(overrides = {}) {
     MOMX: copyFloat64(IXP, overrides.MOMX),
     MOMY: copyFloat64(IXP, overrides.MOMY),
     MOMZ: copyFloat64(IXP, overrides.MOMZ),
-    RMS: overrides.RMS ?? 0.0,
-    RLX: overrides.RLX ?? 1.0,
     CSCALC: overrides.CSCALC ?? null,
   };
 }
 
 function defaultCSCALC(I, state) {
-  const xi = state.XI[I - 1];
-  const utot = 1.0 + 0.02 * I;
-  const wa = 0.01 * xi;
-  const wt = -0.015 * I;
-  const vt = 0.02 + 0.01 * I;
-  const vtAdw = -0.005 * I;
-  const va = -0.01 + 0.008 * I;
-  const vaAdw = 0.003 * I;
-  const vd = 0.004 * I;
-  const vdAdw = -0.002 * I;
-  const ci = xi / state.ADV + 0.03 * I;
-  const ciAdv = -xi / state.ADV ** 2;
-  const ciVt = -1.0;
-  const si = 0.55 + 0.025 * I;
-  const siVa = 1.1;
-  const wsq = ci * ci + si * si;
-  const w = Math.sqrt(wsq);
-  const wAdv = (ci * ciAdv) / w;
-  const wVt = (ci * ciVt) / w;
-  const wVa = (si * siVa) / w;
-  const phi = Math.atan2(si, ci);
-  const pAdv = (-si * ciAdv) / wsq;
-  const pVt = (-si * ciVt) / wsq;
-  const pVa = (ci * siVa) / wsq;
-  return {
-    UTOT: utot,
-    WA: wa,
-    WT: wt,
-    VT: vt,
-    VT_ADW: vtAdw,
-    VA: va,
-    VA_ADW: vaAdw,
-    VD: vd,
-    VD_ADW: vdAdw,
-    CI: ci,
-    CI_ADV: ciAdv,
-    CI_VT: ciVt,
-    SI: si,
-    SI_VA: siVa,
-    W: w,
-    W_ADV: wAdv,
-    W_VT: wVt,
-    W_VA: wVa,
-    PHI: phi,
-    P_ADV: pAdv,
-    P_VT: pVt,
-    P_VA: pVa,
-  };
+  return xoper.CSCALC(state, I);
 }
 
 function resolveCSCALC(state) {
@@ -1046,6 +986,7 @@ module.exports = {
   IXP,
   PI,
   createState,
+  createStructuralState,
   defaultCSCALC,
   BEND,
   EILOAD,

@@ -78,7 +78,7 @@ function parseNumberLine(line, expectedCount) {
 }
 
 function buildState(overrides = {}) {
-  const state = xoper.createState(overrides);
+  const state = Object.assign(xoper.createState(overrides), xbend.createStructuralState(overrides));
   state.VERSION = overrides.VERSION ?? 7.55;
   state.DT = overrides.DT ?? 0.0;
   state.IDEV = overrides.IDEV ?? 1;
@@ -957,7 +957,10 @@ function INIT(state, options = {}) {
 function XROTOR(state, action = {}, hooks = {}) {
   const command = String(action.command ?? '').toUpperCase();
   if (command === 'AERO') {
-    return hooks.AERO ? hooks.AERO(state, action) : xaero.AERO(state, action);
+    return hooks.AERO ? hooks.AERO(state, action) : xaero.AERO(state, {
+      ...action,
+      command: action.subcommand ?? action.aeroCommand ?? action.action ?? 'DISP',
+    });
   }
   if (command === 'NAME') {
     if (action.value !== undefined) {
@@ -1042,10 +1045,16 @@ function XROTOR(state, action = {}, hooks = {}) {
     }, hooks);
   }
   if (command === 'OPER') {
-    return hooks.OPER ? hooks.OPER(state, action) : xoper.OPER(state, action, hooks);
+    return hooks.OPER ? hooks.OPER(state, action) : xoper.OPER(state, {
+      ...action,
+      command: action.subcommand ?? action.operCommand ?? action.action ?? 'DISP',
+    }, hooks);
   }
   if (command === 'BEND') {
-    return hooks.BEND ? hooks.BEND(state, action) : xbend.BEND(state, action);
+    return hooks.BEND ? hooks.BEND(state, action) : xbend.BEND(state, {
+      ...action,
+      command: action.subcommand ?? action.bendCommand ?? action.action ?? 'HELP',
+    });
   }
   if (command === 'INTE') {
     return INTE(state, action);

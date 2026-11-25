@@ -419,7 +419,7 @@ function DEITER(state, ICASE) {
 
     const q = allocateMatrix(IQ, IQ);
     const rhs = Array.from({ length: IQ }, () => new Float64Array(1));
-    let deff = 0.0;
+    let deff = state.DEFF ?? 0.0;
     let dgamdes = 0.0;
 
     for (let i = 1; i <= state.II; i += 1) {
@@ -537,6 +537,7 @@ function DEITER(state, ICASE) {
       dgamdes = -rhs[k1 - 1][0];
     } else {
       deff = -rhs[k1 - 1][0];
+      state.DEFF = deff;
     }
 
     state.DADW = -rhs[k2 - 1][0];
@@ -561,6 +562,8 @@ function DEITER(state, ICASE) {
       }
     }
     rms = Math.sqrt(rms / Number(state.II));
+    state.RMS = rms;
+    state.RLX = rlx;
 
     if (state.DUCT) {
       state.GAMDES = (state.GAMDES ?? 0.0) + rlx * dgamdes;

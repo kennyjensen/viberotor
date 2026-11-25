@@ -97,6 +97,12 @@ function assertMatrixClose(actual, expected, label, absTol = 1e-6, relTol = 1e-6
 
 function buildState(overrides = {}) {
   const state = xbend.createState({
+    // Match the isolated structural driver's explicit CSCALC stub.
+    CSCALC: (i, s) => {
+      const CI = s.XI[i - 1] / s.ADV + 0.03 * i;
+      const SI = 0.55 + 0.025 * i;
+      return { CI, SI, W: Math.sqrt(CI * CI + SI * SI) };
+    },
     II: 4,
     RAD: 2.5,
     VEL: 46.0,

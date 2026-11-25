@@ -1,235 +1,123 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>VibeRotor</title>
-  <link rel="stylesheet" href="./ui/styles.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#141617">
+  <meta name="description" content="An interactive rotor design and analysis workbench powered by XROTOR and Xnoise, with double-precision WebAssembly and JavaScript backends.">
+  <title>VibeRotor | Rotor Workbench</title>
+  <link rel="stylesheet" href="./ui/styles.css">
 </head>
-<body class="vf-theme">
+<body>
   <header class="app-header">
-    <div class="title-bar">
-      <div class="title-text">
-        <div class="title">VibeRotor</div>
-        <div class="title-sub">A propeller analysis workbench inspired by <a href="https://web.mit.edu/drela/Public/web/xrotor/" target="_blank" rel="noopener">XROTOR</a></div>
-      </div>
-      <div class="shell-status">
-        <div class="pill">Static Preview</div>
-        <div class="shell-status-note">VibeLattice visual language, rotor-focused shell</div>
-      </div>
+    <div class="brand"><span class="brand-mark">Vr</span><div><h1>VibeRotor</h1><span class="brand-sub">XROTOR WORKBENCH</span></div></div>
+    <div class="document-title"><span id="headerName">Three-blade baseline</span><span id="dirtyTag" class="tag" hidden>Modified</span></div>
+    <nav class="related-apps" aria-label="Related tools"><a href="https://www.vibefoil.com" target="_blank" rel="noopener">Vf<span>Vibefoil</span></a><a href="https://avl.vibefoil.com" target="_blank" rel="noopener">Vl<span>VibeLattice</span></a></nav>
+    <div class="file-actions">
+      <button class="icon-button" id="openFile" title="Open rotor project (.json)" aria-label="Open rotor project"><i data-lucide="folder-open"></i></button>
+      <button class="icon-button" id="saveFile" title="Save rotor project" aria-label="Save rotor project"><i data-lucide="save"></i></button>
     </div>
+    <input type="file" id="fileInput" accept=".json,application/json" hidden>
   </header>
-
-  <div class="page-indicator" role="tablist" aria-label="Panels">
-    <button id="navSettings" class="nav-btn active" data-target="settingsCol" type="button">Settings</button>
-    <button id="navPlots" class="nav-btn" data-target="plotsCol" type="button">Plots</button>
-    <button id="navOutputs" class="nav-btn" data-target="outputsCol" type="button">Outputs</button>
-  </div>
-
-  <div class="app" id="appRoot">
-    <section class="col settings-col" id="settingsCol">
-      <aside class="panel-col">
-        <div class="panel">
-          <div class="panel-title">
-            Rotor Definition
-            <button class="panel-toggle" data-toggle-panel type="button" aria-label="Collapse Rotor Definition">-</button>
+  <nav class="mobile-tabs" aria-label="Workspace panels"><button data-panel="setup">Setup</button><button data-panel="workspace" class="active">Workspace</button><button data-panel="results">Results</button></nav>
+  <main class="workbench" data-panel="workspace">
+    <aside class="setup" aria-label="Rotor setup">
+      <div class="section-heading"><span>ROTOR SETUP</span><button class="icon-button" id="reset" title="Reset to baseline" aria-label="Reset to baseline"><i data-lucide="rotate-ccw"></i></button></div>
+      <form id="rotorForm">
+        <section class="control-section">
+          <label class="stacked" for="preset">Rotor<select id="preset"><option value="baseline">Three-blade baseline</option><option value="two">Two-blade propeller</option><option value="compact">Compact propeller</option><option value="custom" hidden>Custom rotor</option></select></label>
+          <p id="exampleNote" hidden>Example geometry and operating point. Default airfoil and inflow models.</p>
+          <label class="stacked name-field" for="name">Case name<input id="name" name="name" type="text" maxlength="80" value="Three-blade baseline"></label>
+          <div class="segmented" aria-label="Calculation mode"><button type="button" class="active" data-mode="operate" aria-pressed="true">Operate</button><button type="button" data-mode="design" aria-pressed="false">Design</button></div>
+        </section>
+        <section class="control-section">
+          <h2><i data-lucide="fan"></i>Blade geometry <span id="geometryBadge" class="mini-tag" hidden>Designed</span></h2>
+          <div class="field-grid">
+            <label>Blades<input name="blades" type="number" min="1" max="12" step="1" value="3" required></label>
+            <label>Tip radius<div class="unit-input"><input name="radius" type="number" min="0.05" max="20" step="0.05" value="1.4" required><span>m</span></div></label>
+            <label>Hub / tip<input name="hub" type="number" min="0" max="0.8" step="0.01" value="0.2" required></label>
+            <label>Stations<select name="stations"><option>10</option><option>20</option><option selected>30</option><option>50</option><option>80</option></select></label>
+            <label>Root chord<div class="unit-input"><input name="rootChord" type="number" min="0.001" max="5" step="0.01" value="0.26" required><span>m</span></div></label>
+            <label>Tip chord<div class="unit-input"><input name="tipChord" type="number" min="0.001" max="5" step="0.01" value="0.12" required><span>m</span></div></label>
           </div>
-          <div class="panel-body">
-            <div class="row">
-              <button class="btn primary" data-preset="cruise" type="button">Cruise</button>
-              <button class="btn" data-preset="hover" type="button">Hover</button>
-              <button class="btn" data-preset="quiet" type="button">Quiet</button>
-            </div>
-            <div class="file-meta" id="rotorMeta">Static shell with live preview outputs.</div>
-            <label><span class="label-text">Rotor name</span>
-              <input id="rotorName" type="text" value="VibeRotor Demo Prop" />
-            </label>
-            <div class="grid-2">
-              <label><span class="label-text">Blades</span>
-                <input id="bladeCount" type="number" min="2" max="8" step="1" value="4" />
-              </label>
-              <label><span class="label-text">RPM</span>
-                <input id="rpm" type="number" min="300" max="4500" step="10" value="1680" />
-              </label>
-              <label><span class="label-text">Tip radius (m)</span>
-                <input id="tipRadius" type="number" min="0.3" max="4" step="0.01" value="1.28" />
-              </label>
-              <label><span class="label-text">Hub radius (m)</span>
-                <input id="hubRadius" type="number" min="0.05" max="1" step="0.01" value="0.18" />
-              </label>
-              <label><span class="label-text">Mean chord (m)</span>
-                <input id="meanChord" type="number" min="0.03" max="0.5" step="0.005" value="0.162" />
-              </label>
-              <label><span class="label-text">Tip twist (deg)</span>
-                <input id="tipTwist" type="number" min="0" max="45" step="0.5" value="18.5" />
-              </label>
-            </div>
-            <div class="note">The preview rotor geometry is generated parametrically from these values. Solver hookup can replace the preview model later without changing the shell.</div>
+          <label class="pitch-label">Pitch at 0.75 R<div class="unit-input"><input name="pitch" type="number" min="1" max="75" step="0.5" value="32" required><span>deg</span></div></label>
+          <input type="range" id="pitchRange" aria-label="Pitch at 0.75 R" min="1" max="75" step="0.5" value="32">
+          <label class="check-row"><input name="duct" type="checkbox"><span>Ducted rotor</span></label>
+          <label class="stacked" id="ductField" hidden>Duct velocity ratio<input name="ductVelocity" type="number" min="0.5" max="2" step="0.05" value="1"></label>
+        </section>
+        <section class="control-section">
+          <h2><i data-lucide="gauge"></i>Operating point</h2>
+          <div class="field-grid">
+            <label>Rotation<div class="unit-input"><input name="rpm" type="number" min="10" max="30000" step="50" value="900" required><span>rpm</span></div></label>
+            <label>Airspeed<div class="unit-input"><input name="velocity" type="number" min="0.01" max="250" step="1" value="45" required><span>m/s</span></div></label>
           </div>
+          <div class="design-fields" id="designFields" hidden>
+            <div class="field-grid"><label>Target<select name="targetType"><option value="thrust">Thrust</option><option value="power">Shaft power</option></select></label><label>Value<div class="unit-input"><input name="target" type="number" min="0.1" max="10000000" step="10" value="600" required><span id="targetUnit">N</span></div></label></div>
+            <label class="stacked">Design lift coefficient<input name="designCl" type="number" min="0.1" max="1.2" step="0.05" value="0.6" required></label>
+          </div>
+        </section>
+        <section class="control-section">
+          <h2><i data-lucide="wind"></i>Wake model</h2>
+          <select name="formulation" aria-label="Wake formulation"><option value="graded">Graded momentum</option><option value="potential">Potential flow</option><option value="vortex">Vortex wake</option></select>
+          <label class="check-row"><input name="free" type="checkbox" checked><span>Free wake</span><span class="field-note">Variable advance</span></label>
+        </section>
+        <details class="control-section advanced">
+          <summary>Atmosphere &amp; solver<i data-lucide="chevron-down"></i></summary>
+          <label class="stacked">Numerical backend<select id="backend"><option value="wasm">WebAssembly / original Fortran</option><option value="js">JavaScript / Float64</option></select></label>
+          <div class="field-grid">
+            <label>Density<div class="unit-input"><input name="density" type="number" min="0.01" max="1500" step="0.001" value="1.225"><span>kg/m3</span></div></label>
+            <label>Sound speed<div class="unit-input"><input name="soundSpeed" type="number" min="100" max="1800" step="1" value="340"><span>m/s</span></div></label>
+            <label>Viscosity<input name="viscosity" type="number" min="0.0000001" max="0.1" step="any" value="0.00001789"></label>
+            <label>Max iterations<input name="iterations" type="number" min="1" max="150" step="1" value="60"></label>
+          </div>
+        </details>
+        <div class="solve-dock"><button type="submit" id="solve" class="primary"><i data-lucide="play"></i><span>Run analysis</span></button><button id="cancel" class="secondary" type="button" hidden><i data-lucide="square"></i>Cancel</button></div>
+      </form>
+    </aside>
+    <section class="workspace" aria-label="Geometry and analysis workspace">
+      <div class="workspace-nav"><div class="tabs" role="tablist" aria-label="Analysis views"><button id="tab-rotor" role="tab" aria-selected="true" aria-controls="view-rotor" data-view="rotor" class="active"><i data-lucide="box"></i>Rotor</button><button id="tab-performance" role="tab" aria-selected="false" aria-controls="view-performance" data-view="performance"><i data-lucide="chart-no-axes-combined"></i>Performance</button><button id="tab-noise" role="tab" aria-selected="false" aria-controls="view-noise" data-view="noise"><i data-lucide="audio-lines"></i>Acoustics</button></div><span class="engine-label" id="engineLabel">WASM / FLOAT64</span></div>
+      <div id="view-rotor" class="view active" role="tabpanel" aria-labelledby="tab-rotor">
+        <div class="scene-wrap" id="sceneWrap">
+          <div id="rotorScene" aria-label="Interactive three-dimensional rotor"></div>
+          <div class="scene-top"><div><span class="eyebrow">ROTOR GEOMETRY</span><div id="sceneMeta">3 blades / 2.80 m diameter</div></div><span class="tag" id="sceneGeometry">Prescribed</span></div>
+          <div class="scene-tools"><button id="viewIso" class="icon-button active" title="Isometric view" aria-label="Isometric view"><i data-lucide="box"></i></button><button id="viewFront" class="icon-button" title="Front view" aria-label="Front view"><i data-lucide="scan"></i></button><button id="viewSide" class="icon-button" title="Side view" aria-label="Side view"><i data-lucide="panel-left"></i></button><span></span><button id="fitView" class="icon-button" title="Fit rotor" aria-label="Fit rotor"><i data-lucide="maximize"></i></button><button id="spin" class="icon-button" title="Animate rotation" aria-label="Animate rotation" aria-pressed="false"><i data-lucide="rotate-cw"></i></button><button id="wireframe" class="icon-button" title="Toggle wireframe" aria-label="Toggle wireframe" aria-pressed="false"><i data-lucide="grid-3x3"></i></button></div>
+          <div class="scene-bottom"><span><b class="color-dot"></b>Blade surface</span><span id="sceneRadius">R = 1.400 m</span></div>
+          <p id="webglFallback" hidden>3D rendering is unavailable in this browser.</p>
         </div>
-
-        <div class="panel">
-          <div class="panel-title">
-            Operating Point
-            <button class="panel-toggle" data-toggle-panel type="button" aria-label="Collapse Operating Point">-</button>
-          </div>
-          <div class="panel-body flight-conditions">
-            <label class="flight-row"><span class="label-text">Airspeed (m/s)</span>
-              <input id="airspeed" type="number" min="0" max="150" step="0.1" value="34" />
-            </label>
-            <label class="flight-row"><span class="label-text">Density (kg/m³)</span>
-              <input id="density" type="number" min="0.2" max="2" step="0.001" value="1.225" />
-            </label>
-            <label class="flight-row"><span class="label-text">Speed of sound (m/s)</span>
-              <input id="soundSpeed" type="number" min="250" max="360" step="0.1" value="340" />
-            </label>
-            <label class="flight-row"><span class="label-text">Target thrust (N)</span>
-              <input id="targetThrust" type="number" min="10" max="8000" step="1" value="980" />
-            </label>
-            <label class="flight-row"><span class="label-text">Collective offset (deg)</span>
-              <input id="collective" type="number" min="-5" max="25" step="0.1" value="4.5" />
-            </label>
-            <label class="toggle">
-              <input id="ducted" type="checkbox" />
-              Ducted configuration preview
-            </label>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-title">
-            Acoustic Settings
-            <button class="panel-toggle" data-toggle-panel type="button" aria-label="Collapse Acoustic Settings">-</button>
-          </div>
-          <div class="panel-body">
-            <div class="grid-2">
-              <label><span class="label-text">Microphone X (m)</span>
-                <input id="micX" type="number" step="0.1" value="12" />
-              </label>
-              <label><span class="label-text">Microphone Y (m)</span>
-                <input id="micY" type="number" step="0.1" value="4" />
-              </label>
-              <label><span class="label-text">Microphone Z (m)</span>
-                <input id="micZ" type="number" step="0.1" value="1.6" />
-              </label>
-              <label><span class="label-text">Grid radius (m)</span>
-                <input id="gridRadius" type="number" min="5" max="100" step="1" value="24" />
-              </label>
-              <label><span class="label-text">Grid resolution</span>
-                <input id="gridResolution" type="number" min="16" max="80" step="1" value="42" />
-              </label>
-              <label class="toggle acoustic-toggle">
-                <input id="aWeighting" type="checkbox" checked />
-                A-weighted preview
-              </label>
-            </div>
-            <div class="pill-row">
-              <div class="pill-pill"><span>Mic distance</span><strong id="micDistance">0.0 m</strong></div>
-              <div class="pill-pill"><span>Advance ratio</span><strong id="advanceRatioPill">0.00</strong></div>
-            </div>
-          </div>
-        </div>
-      </aside>
+        <div class="data-heading"><div class="tabs small-tabs"><button class="active" data-table="stations">Blade stations</button><button data-table="history">Convergence</button></div><button id="exportCsv" class="icon-button" title="Export blade data as CSV" aria-label="Export blade data as CSV" disabled><i data-lucide="download"></i></button></div>
+        <div class="data-table-wrap" id="stationPanel"><table><thead><tr><th>Station</th><th>r / R</th><th>Chord <small>m</small></th><th>Pitch <small>deg</small></th><th>CL</th><th>CD</th><th>Mach</th></tr></thead><tbody id="stationRows"><tr><td colspan="7">Solving operating point...</td></tr></tbody></table></div>
+        <div id="historyPanel" class="history-panel" hidden><canvas id="historyChart" aria-label="Convergence residual by iteration"></canvas><div id="historyMeta"></div></div>
+      </div>
+      <div id="view-performance" class="view analysis-view" role="tabpanel" aria-labelledby="tab-performance" hidden>
+        <div class="analysis-heading"><div><span class="eyebrow">PERFORMANCE MAP</span><h2>RPM sweep</h2></div><button class="icon-button" id="exportSweep" title="Export sweep CSV" aria-label="Export sweep CSV" disabled><i data-lucide="download"></i></button></div>
+        <form id="sweepForm" class="inline-form"><label>From <input id="sweepFrom" type="number" min="10" max="29999" value="600" required></label><label>To <input id="sweepTo" type="number" min="11" max="30000" value="1200" required></label><label>Points <input id="sweepCount" type="number" min="3" max="31" value="9" required></label><button class="primary" id="runSweep"><i data-lucide="play"></i>Run sweep</button></form>
+        <div class="large-chart"><div class="chart-heading"><h3>Thrust</h3><span>N</span></div><canvas id="sweepThrust" aria-label="Thrust by RPM"></canvas></div>
+        <div class="large-chart"><div class="chart-heading"><h3>Propulsive efficiency</h3><span>%</span></div><canvas id="sweepEfficiency" aria-label="Efficiency by RPM"></canvas></div>
+        <div id="sweepStatus" class="view-status" role="status">No sweep calculated.</div>
+      </div>
+      <div id="view-noise" class="view analysis-view" role="tabpanel" aria-labelledby="tab-noise" hidden>
+        <div class="analysis-heading"><div><span class="eyebrow">XNOISE</span><h2>Observer acoustics</h2></div><span class="tag">Unweighted</span></div>
+        <form id="noiseForm" class="inline-form noise-form"><label>X <span>m</span><input id="observerX" type="number" value="0" step="1" required></label><label>Y <span>m</span><input id="observerY" type="number" value="0" step="1" required></label><label>Z <span>m</span><input id="observerZ" type="number" value="-30" step="1" required></label><label>Area / c2<input id="observerArea" type="number" value="0.08" min="0" max="0.4" step="0.01" required></label><button class="primary" id="runNoise"><i data-lucide="play"></i>Calculate</button></form>
+        <div class="acoustic-totals"><div><span>Total sound pressure</span><strong id="noiseSpl">-- <small>dB</small></strong></div><div><span>Blade-passage frequency</span><strong id="noiseBpf">-- <small>Hz</small></strong></div></div>
+        <div class="large-chart"><div class="chart-heading"><h3>Harmonic spectrum</h3><span>dB re 20 uPa</span></div><canvas id="noiseSpectrum" aria-label="Acoustic harmonic spectrum"></canvas></div>
+        <div class="large-chart"><div class="chart-heading"><h3>Pressure trace</h3><span>Pa</span></div><canvas id="noiseTrace" aria-label="Acoustic pressure over time"></canvas></div>
+        <div id="noiseStatus" class="view-status" role="status">No observer calculation.</div>
+      </div>
+      <div class="message-bar" id="message" role="status" aria-live="polite"><i data-lucide="loader-circle"></i><span>Initializing solver...</span></div>
     </section>
-
-    <section class="col plots-col" id="plotsCol">
-      <main class="main-col">
-        <div class="stage stage-geo">
-          <div class="stage-header">
-            <div>
-              <div class="stage-title">Rotor Geometry Preview</div>
-              <div class="stage-sub" id="viewerSubtitle">Top-down blade planform and wake framing.</div>
-            </div>
-            <div class="stage-actions">
-              <div class="viewer-tools">
-                <button id="viewTop" class="viewer-btn active" data-view="top" type="button">Top</button>
-                <button id="viewSide" class="viewer-btn" data-view="side" type="button">Side</button>
-                <button id="viewNoise" class="viewer-btn" data-view="noise" type="button">Noise</button>
-              </div>
-            </div>
-          </div>
-          <div class="stage-panel-body">
-            <div id="viewer" class="viewer">
-              <div id="viewerAircraftName" class="viewer-aircraft-name">VibeRotor Demo Prop</div>
-              <svg id="rotorSvg" class="plot-svg" viewBox="0 0 920 520" preserveAspectRatio="xMidYMid meet" aria-label="Rotor geometry preview"></svg>
-              <div class="viewer-overlay">
-                <div class="viewer-legend">
-                  <div><span class="legend-swatch accent"></span>blade envelope</div>
-                  <div><span class="legend-swatch wake"></span>wake / loading cue</div>
-                  <div><span class="legend-swatch grid"></span>reference grid</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-title">
-            Spanwise Distributions
-            <button class="panel-toggle" data-toggle-panel type="button" aria-label="Collapse Spanwise Distributions">-</button>
-          </div>
-          <div class="panel-body">
-            <svg id="spanwiseSvg" class="plot-svg compact-plot" viewBox="0 0 920 280" preserveAspectRatio="none" aria-label="Spanwise distributions plot"></svg>
-          </div>
-        </div>
-
-        <div class="panel">
-          <div class="panel-title">
-            Acoustic Footprint
-            <button class="panel-toggle" data-toggle-panel type="button" aria-label="Collapse Acoustic Footprint">-</button>
-          </div>
-          <div class="panel-body">
-            <canvas id="footprintCanvas" class="plot-canvas" width="920" height="360" aria-label="Acoustic footprint preview"></canvas>
-          </div>
-        </div>
-      </main>
-    </section>
-
-    <section class="col outputs-col" id="outputsCol">
-      <aside class="output-col">
-        <div class="panel output">
-          <div class="panel-title">
-            Operating Summary
-            <button class="panel-toggle" data-toggle-panel type="button" aria-label="Collapse Operating Summary">-</button>
-          </div>
-          <div class="panel-body">
-            <div class="output kvs summary-grid">
-              <div class="kv"><span>Tip speed</span><strong id="outTipSpeed">0 m/s</strong></div>
-              <div class="kv"><span>Advance ratio</span><strong id="outAdvanceRatio">0.00</strong></div>
-              <div class="kv"><span>Disk loading</span><strong id="outDiskLoading">0 N/m²</strong></div>
-              <div class="kv"><span>Solidity</span><strong id="outSolidity">0.000</strong></div>
-              <div class="kv"><span>Estimated shaft power</span><strong id="outPower">0 kW</strong></div>
-              <div class="kv"><span>Preview SPL</span><strong id="outSpl">0 dBA</strong></div>
-              <div class="kv"><span>Tip Mach</span><strong id="outTipMach">0.00</strong></div>
-              <div class="kv"><span>Wake skew</span><strong id="outWakeSkew">0.0°</strong></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="panel output">
-          <div class="panel-title">
-            Radial Stations
-            <button class="panel-toggle" data-toggle-panel type="button" aria-label="Collapse Radial Stations">-</button>
-          </div>
-          <div class="panel-body">
-            <div id="stationTable" class="mono-output"></div>
-          </div>
-        </div>
-
-        <div class="panel output">
-          <div class="panel-title">
-            Preview Log
-            <button class="panel-toggle" data-toggle-panel type="button" aria-label="Collapse Preview Log">-</button>
-          </div>
-          <div class="panel-body">
-            <div id="previewLog" class="debug-log"></div>
-            <div class="note">These values are live UI previews, not XROTOR solves. They are meant to anchor layout and interaction while the numerical port is wired in.</div>
-          </div>
-        </div>
-      </aside>
-    </section>
-  </div>
-
-  <script type="module" src="./ui/app.js"></script>
+    <aside class="results" aria-label="Analysis results">
+      <div class="section-heading"><span>OPERATING RESULTS</span><span id="solutionStatus" class="status-badge">Solving</span></div>
+      <div class="metrics"><div class="metric"><span>Thrust</span><strong id="thrust">--<small>N</small></strong></div><div class="metric"><span>Shaft power</span><strong id="power">--<small>kW</small></strong></div><div class="metric"><span>Efficiency</span><strong id="efficiency">--<small>%</small></strong></div><div class="metric"><span>Torque</span><strong id="torque">--<small>N m</small></strong></div></div>
+      <div class="coefficient-row"><span>J<strong id="advance">--</strong></span><span>CT<strong id="ct">--</strong></span><span>CP<strong id="cp">--</strong></span></div>
+      <section class="plot-section"><div class="chart-heading"><h2>Blade loading</h2><span class="legend green">CL</span></div><canvas id="loadingChart" aria-label="Lift coefficient along the blade"></canvas></section>
+      <section class="plot-section"><div class="chart-heading"><h2>Radial geometry</h2><select id="geometryPlot" aria-label="Radial geometry quantity"><option value="chord">Chord / m</option><option value="pitch">Pitch / deg</option><option value="mach">Mach</option></select></div><canvas id="geometryChart" aria-label="Blade geometry along the radius"></canvas></section>
+      <section class="case-section"><div class="chart-heading"><h2>Saved cases <span id="caseCount">0</span></h2><button id="saveCase" class="icon-button" title="Save current solved case" aria-label="Save current solved case" disabled><i data-lucide="plus"></i></button></div><div id="caseList"><p class="empty-state">No saved cases</p></div></section>
+      <div class="solver-details"><span id="solverModel">Graded momentum</span><span id="solverTiming">--</span></div>
+    </aside>
+  </main>
+  <footer class="statusbar"><span><b class="connection-dot"></b>XROTOR / Xnoise</span><span id="footerState">Double-precision WebAssembly</span><span class="footer-note">SI units</span></footer>
+  <dialog id="confirmReset"><form method="dialog"><h2>Reset this rotor?</h2><p>Unsaved geometry and inputs will be replaced by the baseline rotor.</p><div class="dialog-actions"><button value="cancel" class="secondary">Cancel</button><button value="reset" class="primary">Reset rotor</button></div></form></dialog>
+  <noscript>This workbench requires JavaScript.</noscript>
+  <script type="module" src="./dist/app.js"></script>
 </body>
 </html>

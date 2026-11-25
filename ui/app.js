@@ -1,691 +1,459 @@
-const els = {
-  appRoot: document.getElementById('appRoot'),
-  navSettings: document.getElementById('navSettings'),
-  navPlots: document.getElementById('navPlots'),
-  navOutputs: document.getElementById('navOutputs'),
-  settingsCol: document.getElementById('settingsCol'),
-  plotsCol: document.getElementById('plotsCol'),
-  outputsCol: document.getElementById('outputsCol'),
-  rotorMeta: document.getElementById('rotorMeta'),
-  rotorName: document.getElementById('rotorName'),
-  bladeCount: document.getElementById('bladeCount'),
-  rpm: document.getElementById('rpm'),
-  tipRadius: document.getElementById('tipRadius'),
-  hubRadius: document.getElementById('hubRadius'),
-  meanChord: document.getElementById('meanChord'),
-  tipTwist: document.getElementById('tipTwist'),
-  airspeed: document.getElementById('airspeed'),
-  density: document.getElementById('density'),
-  soundSpeed: document.getElementById('soundSpeed'),
-  targetThrust: document.getElementById('targetThrust'),
-  collective: document.getElementById('collective'),
-  ducted: document.getElementById('ducted'),
-  micX: document.getElementById('micX'),
-  micY: document.getElementById('micY'),
-  micZ: document.getElementById('micZ'),
-  gridRadius: document.getElementById('gridRadius'),
-  gridResolution: document.getElementById('gridResolution'),
-  aWeighting: document.getElementById('aWeighting'),
-  micDistance: document.getElementById('micDistance'),
-  advanceRatioPill: document.getElementById('advanceRatioPill'),
-  viewerSubtitle: document.getElementById('viewerSubtitle'),
-  viewerAircraftName: document.getElementById('viewerAircraftName'),
-  rotorSvg: document.getElementById('rotorSvg'),
-  spanwiseSvg: document.getElementById('spanwiseSvg'),
-  footprintCanvas: document.getElementById('footprintCanvas'),
-  outTipSpeed: document.getElementById('outTipSpeed'),
-  outAdvanceRatio: document.getElementById('outAdvanceRatio'),
-  outDiskLoading: document.getElementById('outDiskLoading'),
-  outSolidity: document.getElementById('outSolidity'),
-  outPower: document.getElementById('outPower'),
-  outSpl: document.getElementById('outSpl'),
-  outTipMach: document.getElementById('outTipMach'),
-  outWakeSkew: document.getElementById('outWakeSkew'),
-  stationTable: document.getElementById('stationTable'),
-  previewLog: document.getElementById('previewLog'),
+import {
+  createIcons, FolderOpen, Save, RotateCcw, Fan, Gauge, Wind, ChevronDown,
+  Play, Square, Box, ChartNoAxesCombined, AudioLines, Scan, PanelLeft,
+  Maximize, RotateCw, Grid3x3, Download, LoaderCircle, Plus, X, Check, AlertTriangle,
+} from 'lucide';
+import defaults from './config.cjs';
+import examples from './examples.js';
+import { Plot } from './plots.js';
+import { RotorView } from './rotor-view.js';
+
+const $ = id => document.getElementById(id);
+const all = selector => [...document.querySelectorAll(selector)];
+const icons = { FolderOpen, Save, RotateCcw, Fan, Gauge, Wind, ChevronDown,
+  Play, Square, Box, ChartNoAxesCombined, AudioLines, Scan, PanelLeft,
+  Maximize, RotateCw, Grid3x3, Download, LoaderCircle, Plus, X, Check, AlertTriangle };
+const icon = name => {
+  const node = document.createElement('i');
+  node.dataset.lucide = name;
+  return node;
 };
-
-const viewButtons = Array.from(document.querySelectorAll('[data-view]'));
-const presetButtons = Array.from(document.querySelectorAll('[data-preset]'));
-const panels = Array.from(document.querySelectorAll('.panel'));
-const inputs = Array.from(document.querySelectorAll('input, select'));
-
-const PRESETS = {
-  cruise: {
-    rotorName: 'VibeRotor Cruise Prop',
-    bladeCount: 4,
-    rpm: 1680,
-    tipRadius: 1.28,
-    hubRadius: 0.18,
-    meanChord: 0.162,
-    tipTwist: 18.5,
-    airspeed: 34,
-    density: 1.225,
-    soundSpeed: 340,
-    targetThrust: 980,
-    collective: 4.5,
-    ducted: false,
-    micX: 12,
-    micY: 4,
-    micZ: 1.6,
-    gridRadius: 24,
-    gridResolution: 42,
-    aWeighting: true,
-  },
-  hover: {
-    rotorName: 'VibeRotor Hover Rig',
-    bladeCount: 5,
-    rpm: 1180,
-    tipRadius: 1.54,
-    hubRadius: 0.24,
-    meanChord: 0.186,
-    tipTwist: 26,
-    airspeed: 6,
-    density: 1.225,
-    soundSpeed: 340,
-    targetThrust: 1680,
-    collective: 9.8,
-    ducted: false,
-    micX: 10,
-    micY: 0,
-    micZ: 2.4,
-    gridRadius: 28,
-    gridResolution: 48,
-    aWeighting: false,
-  },
-  quiet: {
-    rotorName: 'VibeRotor Quiet Duct',
-    bladeCount: 7,
-    rpm: 980,
-    tipRadius: 0.96,
-    hubRadius: 0.22,
-    meanChord: 0.142,
-    tipTwist: 14,
-    airspeed: 22,
-    density: 1.18,
-    soundSpeed: 336,
-    targetThrust: 760,
-    collective: 3.1,
-    ducted: true,
-    micX: 16,
-    micY: 6,
-    micZ: 1.8,
-    gridRadius: 22,
-    gridResolution: 36,
-    aWeighting: true,
-  },
+const refreshIcons = () => createIcons({ icons });
+const form = $('rotorForm');
+const presets = {
+  baseline: defaults,
+  two: { ...defaults, name: 'Two-blade propeller', blades: 2, radius: 0.9, rootChord: 0.18, tipChord: 0.09, pitch: 28, rpm: 1500, velocity: 45, target: 400 },
+  compact: { ...defaults, name: 'Compact propeller', blades: 2, radius: 0.3, rootChord: 0.065, tipChord: 0.025, pitch: 25, rpm: 4500, velocity: 35, target: 50 },
 };
-
-const uiState = {
-  viewMode: 'top',
-  activeColumn: 'settingsCol',
+const exampleGroup = document.createElement('optgroup');
+exampleGroup.label = 'XROTOR examples';
+for (const [id, { label }] of Object.entries(examples)) exampleGroup.append(new Option(label, id));
+$('preset').append(exampleGroup);
+let mode = 'operate';
+let geometry;
+let lastResult;
+let sweepPoints;
+let dirty = true;
+let busy = false;
+let worker;
+let pending;
+let sequence = 0;
+let cases = [];
+const storageKey = 'viberotor.cases.v1';
+const plots = {
+  loading: new Plot($('loadingChart'), { xMin: 0.2, xMax: 1, zero: true }),
+  geometry: new Plot($('geometryChart'), { color: '#79b9d5', xMin: 0.2, xMax: 1 }),
+  history: new Plot($('historyChart'), { xLabel: 'Iteration', log: true }),
+  sweepThrust: new Plot($('sweepThrust'), { xLabel: 'rpm', zero: true }),
+  sweepEfficiency: new Plot($('sweepEfficiency'), { xLabel: 'rpm', color: '#79b9d5' }),
+  spectrum: new Plot($('noiseSpectrum'), { xLabel: 'Hz', color: '#dfb578', bars: true }),
+  trace: new Plot($('noiseTrace'), { xLabel: 'ms', color: '#79b9d5' }),
 };
-
-function clamp(value, min, max) {
-  return Math.max(min, Math.min(max, value));
+let rotor;
+try { rotor = new RotorView($('rotorScene')); }
+catch (error) {
+  $('webglFallback').hidden = false;
+  all('.scene-tools button').forEach(button => { button.disabled = true; });
+  console.warn('3D renderer unavailable:', error.message);
 }
 
-function format(value, digits = 2) {
-  return Number(value).toFixed(digits);
-}
-
-function readNumber(element, fallback) {
-  const value = Number(element.value);
-  return Number.isFinite(value) ? value : fallback;
-}
-
-function setControlValue(key, value) {
-  const element = els[key];
-  if (!element) {
-    return;
+function message(text, kind = '') {
+  $('message').className = 'message-bar' + (kind ? ' ' + kind : '');
+  const label = document.createElement('span');
+  label.textContent = text;
+  $('message').replaceChildren(icon(kind === 'error' || kind === 'warning' ? 'alert-triangle' : busy ? 'loader-circle' : 'check'), label);
+  if (busy) {
+    const cancel = document.createElement('button');
+    cancel.className = 'icon-button';
+    cancel.title = 'Cancel calculation';
+    cancel.setAttribute('aria-label', 'Cancel calculation');
+    cancel.append(icon('square'));
+    cancel.addEventListener('click', () => cancelTask());
+    $('message').append(cancel);
   }
-  if (element.type === 'checkbox') {
-    element.checked = Boolean(value);
-  } else {
-    element.value = String(value);
-  }
+  refreshIcons();
 }
-
-function applyPreset(name) {
-  const preset = PRESETS[name];
-  if (!preset) {
-    return;
-  }
-  Object.entries(preset).forEach(([key, value]) => setControlValue(key, value));
-  updateApp();
+function status(text, type = '') {
+  $('solutionStatus').textContent = text;
+  $('solutionStatus').className = 'status-badge ' + type;
 }
-
-function attachPresets() {
-  presetButtons.forEach((button) => {
-    button.addEventListener('click', () => applyPreset(button.dataset.preset));
-  });
+function setBusy(value) {
+  busy = value;
+  document.body.classList.toggle('busy', value);
+  all('#rotorForm input, #rotorForm select, #rotorForm button:not(#cancel), #sweepForm input, #noiseForm input, #runSweep, #runNoise, #openFile, #reset, [data-mode], .case-row button').forEach(el => { el.disabled = value; });
+  $('cancel').hidden = !value;
+  $('saveCase').disabled = value || dirty || !lastResult?.converged;
+  $('saveFile').disabled = value;
 }
-
-function attachPanelToggles() {
-  panels.forEach((panel) => {
-    const toggle = panel.querySelector('[data-toggle-panel]');
-    if (!toggle) {
-      return;
+function newWorker() {
+  worker = new Worker(new URL('./solver.worker.js', import.meta.url), { type: 'module' });
+  worker.onmessage = ({ data }) => {
+    if (!pending || data.id !== pending.id) return;
+    if (data.progress) { pending.progress?.(data.progress); return; }
+    const task = pending;
+    pending = null;
+    clearTimeout(task.timeout);
+    if (data.error) task.reject(new Error(data.error)); else task.resolve(data.result);
+  };
+  worker.onerror = event => {
+    event.preventDefault();
+    if (pending) {
+      clearTimeout(pending.timeout);
+      pending.reject(new Error(event.message || 'The solver worker could not start.'));
+      pending = null;
     }
-    toggle.addEventListener('click', () => {
-      panel.classList.toggle('collapsed');
-      toggle.textContent = panel.classList.contains('collapsed') ? '+' : '-';
-    });
-  });
-}
-
-function setActiveNav(targetId) {
-  [els.navSettings, els.navPlots, els.navOutputs].forEach((button) => {
-    button.classList.toggle('active', button.dataset.target === targetId);
-  });
-  uiState.activeColumn = targetId;
-}
-
-function attachMobileNav() {
-  [els.navSettings, els.navPlots, els.navOutputs].forEach((button) => {
-    button.addEventListener('click', () => {
-      const target = document.getElementById(button.dataset.target);
-      if (!target) {
-        return;
-      }
-      setActiveNav(button.dataset.target);
-      target.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
-    });
-  });
-
-  const observer = new IntersectionObserver((entries) => {
-    let bestEntry = null;
-    for (const entry of entries) {
-      if (!bestEntry || entry.intersectionRatio > bestEntry.intersectionRatio) {
-        bestEntry = entry;
-      }
-    }
-    if (bestEntry && bestEntry.isIntersecting) {
-      setActiveNav(bestEntry.target.id);
-    }
-  }, {
-    root: window.matchMedia('(max-width: 900px)').matches ? els.appRoot : null,
-    threshold: [0.3, 0.55, 0.8],
-  });
-
-  [els.settingsCol, els.plotsCol, els.outputsCol].forEach((section) => observer.observe(section));
-}
-
-function attachViewButtons() {
-  viewButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      uiState.viewMode = button.dataset.view;
-      viewButtons.forEach((item) => item.classList.toggle('active', item === button));
-      updateApp();
-    });
-  });
-}
-
-function collectInputs() {
-  const tipRadius = clamp(readNumber(els.tipRadius, 1.28), 0.3, 4.0);
-  const hubRadius = clamp(readNumber(els.hubRadius, 0.18), 0.05, tipRadius - 0.05);
-  const blades = clamp(Math.round(readNumber(els.bladeCount, 4)), 2, 8);
-  const rpm = clamp(readNumber(els.rpm, 1680), 300, 4500);
-  const meanChord = clamp(readNumber(els.meanChord, 0.162), 0.03, 0.5);
-  const tipTwist = clamp(readNumber(els.tipTwist, 18.5), 0, 45);
-  const airspeed = clamp(readNumber(els.airspeed, 34), 0, 150);
-  const density = clamp(readNumber(els.density, 1.225), 0.2, 2.0);
-  const soundSpeed = clamp(readNumber(els.soundSpeed, 340), 250, 360);
-  const targetThrust = clamp(readNumber(els.targetThrust, 980), 10, 8000);
-  const collective = clamp(readNumber(els.collective, 4.5), -5, 25);
-  const micX = readNumber(els.micX, 12);
-  const micY = readNumber(els.micY, 4);
-  const micZ = readNumber(els.micZ, 1.6);
-  const gridRadius = clamp(readNumber(els.gridRadius, 24), 5, 100);
-  const gridResolution = clamp(Math.round(readNumber(els.gridResolution, 42)), 16, 80);
-
-  return {
-    rotorName: els.rotorName.value.trim() || 'VibeRotor Demo Prop',
-    blades,
-    rpm,
-    tipRadius,
-    hubRadius,
-    meanChord,
-    tipTwist,
-    airspeed,
-    density,
-    soundSpeed,
-    targetThrust,
-    collective,
-    ducted: els.ducted.checked,
-    micX,
-    micY,
-    micZ,
-    gridRadius,
-    gridResolution,
-    aWeighting: els.aWeighting.checked,
+    worker.terminate();
+    worker = undefined;
   };
 }
-
-function computeModel(input) {
-  const omega = input.rpm * 2.0 * Math.PI / 60.0;
-  const diskArea = Math.PI * (input.tipRadius ** 2 - input.hubRadius ** 2);
-  const tipSpeed = omega * input.tipRadius;
-  const hubRatio = input.hubRadius / input.tipRadius;
-  const advanceRatio = input.airspeed / ((input.rpm / 60.0) * (2.0 * input.tipRadius));
-  const solidity = input.blades * input.meanChord / (Math.PI * input.tipRadius);
-  const thrustCoeff = input.targetThrust / (input.density * (input.rpm / 60.0) ** 2 * (2.0 * input.tipRadius) ** 4);
-  const powerCoeff = thrustCoeff * (0.56 + 0.18 * advanceRatio + (input.ducted ? -0.04 : 0.06));
-  const shaftPower = powerCoeff * input.density * (input.rpm / 60.0) ** 3 * (2.0 * input.tipRadius) ** 5;
-  const diskLoading = input.targetThrust / diskArea;
-  const wakeSkewDeg = Math.atan2(input.airspeed, Math.max(tipSpeed * 0.64, 1.0)) * 180.0 / Math.PI;
-  const tipMach = Math.sqrt(input.airspeed ** 2 + tipSpeed ** 2) / input.soundSpeed;
-  const micDistance = Math.sqrt(input.micX ** 2 + input.micY ** 2 + input.micZ ** 2);
-  let spl = 67.0 + 8.5 * Math.log10(Math.max(shaftPower, 1200.0) / 1000.0) + 0.045 * tipSpeed - 9.5 * Math.log10(Math.max(micDistance, 1.0));
-  if (input.ducted) {
-    spl -= 2.4;
+function request(action, config, options, progress) {
+  if (pending) return Promise.reject(new Error('A calculation is already running.'));
+  if (!worker) newWorker();
+  return new Promise((resolve, reject) => {
+    const id = ++sequence;
+    const timeout = setTimeout(() => cancelTask('Calculation timed out. Reduce the station count or iteration limit.'), 90000);
+    pending = { id, resolve, reject, progress, timeout };
+    worker.postMessage({ id, action, config, options, backend: $('backend').value });
+  });
+}
+function cancelTask(reason = 'Calculation cancelled.') {
+  if (!pending) return;
+  clearTimeout(pending.timeout);
+  pending.reject(new Error(reason));
+  pending = null;
+  worker.terminate();
+  newWorker();
+}
+async function task(label, action, config, options, onResult, onProgress) {
+  if (busy) return;
+  setBusy(true);
+  message(label);
+  try {
+    const result = await request(action, config, options, onProgress);
+    setBusy(false);
+    onResult(result);
+  } catch (error) {
+    setBusy(false);
+    message(error.message, 'error');
+    if (action === 'operate' || action === 'design') status('Not solved', 'warning');
+    if (action === 'sweep') $('sweepStatus').textContent = error.message;
+    if (action === 'noise') $('noiseStatus').textContent = error.message;
   }
-  if (input.aWeighting) {
-    spl -= 1.8;
+}
+function readConfig() {
+  const c = {};
+  for (const [key, value] of Object.entries(defaults)) {
+    const field = form.elements.namedItem(key);
+    c[key] = typeof value === 'boolean' ? field.checked : typeof value === 'number' ? Number(field.value) : field.value;
   }
-
-  const stations = [];
-  const stationCount = 18;
-  for (let i = 0; i < stationCount; i += 1) {
-    const t = i / (stationCount - 1);
-    const rOverR = hubRatio + (1.0 - hubRatio) * t;
-    const radius = input.tipRadius * rOverR;
-    const taper = 1.08 - 0.38 * t + 0.04 * Math.sin(2.6 * Math.PI * t);
-    const chord = input.meanChord * taper;
-    const beta = input.collective + input.tipTwist * (0.10 + 0.90 * (1.0 - t) ** 1.08);
-    const cl = clamp(
-      0.34
-      + 0.26 * (1.0 - t)
-      + thrustCoeff * 26.0
-      - advanceRatio * 0.18
-      + (input.ducted ? 0.03 : 0.0),
-      0.12,
-      1.25,
-    );
-    const localSpeed = Math.sqrt(input.airspeed ** 2 + (omega * radius) ** 2);
-    const mach = localSpeed / input.soundSpeed;
-    stations.push({ rOverR, radius, chord, beta, cl, mach });
+  if (geometry) c.geometry = geometry;
+  return c;
+}
+function applyConfig(c, preset = 'custom') {
+  geometry = c.geometry;
+  for (const [key, fallback] of Object.entries(defaults)) {
+    const field = form.elements.namedItem(key);
+    const value = c[key] ?? fallback;
+    if (field.tagName === 'SELECT' && ![...field.options].some(option => option.value === String(value))) field.add(new Option(String(value), String(value)));
+    if (typeof fallback === 'boolean') field.checked = value;
+    else field.value = value;
   }
-
-  return {
-    ...input,
-    omega,
-    diskArea,
-    tipSpeed,
-    advanceRatio,
-    solidity,
-    thrustCoeff,
-    shaftPower,
-    diskLoading,
-    wakeSkewDeg,
-    tipMach,
-    spl,
-    micDistance,
-    hubRatio,
-    stations,
-  };
+  $('preset').value = preset;
+  syncControls();
+  markDirty();
+  preview();
 }
-
-function pathFromSeries(points) {
-  return points.map((point, index) => `${index === 0 ? 'M' : 'L'} ${point[0].toFixed(2)} ${point[1].toFixed(2)}`).join(' ');
+function syncControls() {
+  $('exampleNote').hidden = !examples[$('preset').value];
+  $('pitchRange').value = form.elements.pitch.value;
+  $('ductField').hidden = !form.elements.duct.checked;
+  $('targetUnit').textContent = form.elements.targetType.value === 'thrust' ? 'N' : 'W';
+  $('geometryBadge').hidden = !geometry;
+  $('geometryBadge').textContent = 'Custom';
+  $('headerName').textContent = form.elements.name.value || 'Untitled rotor';
+  $('sceneGeometry').textContent = geometry ? 'Custom geometry' : 'Prescribed';
 }
-
-function polarPoint(cx, cy, radius, angle) {
-  return [cx + radius * Math.cos(angle), cy + radius * Math.sin(angle)];
+function markDirty() {
+  $('engineLabel').textContent = ($('backend').value === 'wasm' ? 'WASM' : 'JS') + ' / FLOAT64';
+  dirty = true;
+  $('dirtyTag').hidden = false;
+  $('saveCase').disabled = true;
+  $('exportCsv').disabled = true;
+  invalidateAnalyses();
+  status(lastResult ? 'Modified' : 'Not solved', 'warning');
+  $('footerState').textContent = 'Inputs modified';
 }
-
-function buildBladePath(model, angle, cx, cy, radiusScale) {
-  const outline = [];
-  const inner = [];
-  for (let i = 0; i < model.stations.length; i += 1) {
-    const station = model.stations[i];
-    const r = station.rOverR * radiusScale;
-    const halfWidth = clamp((station.chord / model.tipRadius) * radiusScale * 0.56, 8, 26);
-    const px = cx + r * Math.cos(angle);
-    const py = cy + r * Math.sin(angle);
-    const nx = -Math.sin(angle);
-    const ny = Math.cos(angle);
-    outline.push(`${i === 0 ? 'M' : 'L'} ${(px + nx * halfWidth).toFixed(2)} ${(py + ny * halfWidth).toFixed(2)}`);
-    inner.unshift(`L ${(px - nx * halfWidth).toFixed(2)} ${(py - ny * halfWidth).toFixed(2)}`);
+function invalidateAnalyses() {
+  $('exportSweep').disabled = true;
+  $('sweepStatus').textContent = sweepPoints ? 'Inputs changed. Sweep is from the previous configuration.' : 'No sweep calculated.';
+  if ($('noiseSpl').dataset.calculated) $('noiseStatus').textContent = 'Inputs changed. Acoustics are from the previous configuration.';
+}
+function preview() {
+  const c = readConfig();
+  if (![c.radius, c.hub, c.rootChord, c.tipChord, c.pitch, c.blades].every(Number.isFinite) ||
+      c.radius <= 0 || c.hub < 0 || c.hub >= 1 || c.blades < 1 || c.blades > 12) return;
+  const rows = geometry || Array.from({ length: 30 }, (_, i) => {
+    const r = c.hub + (1 - c.hub) * (i + 0.5) / 30;
+    return { r, chord: c.rootChord + (c.tipChord - c.rootChord) * (r - c.hub) / (1 - c.hub),
+      pitch: Math.atan2(0.75 * Math.tan(c.pitch * Math.PI / 180), r) * 180 / Math.PI };
+  });
+  rotor?.update(c, rows);
+  $('sceneMeta').textContent = c.blades + ' blades / ' + (c.radius * 2).toFixed(2) + ' m diameter';
+  $('sceneRadius').textContent = 'R = ' + c.radius.toFixed(3) + ' m';
+}
+const format = (value, digits = 1) => Number.isFinite(value) ? new Intl.NumberFormat('en-US', { maximumFractionDigits: digits, minimumFractionDigits: digits, notation: Math.abs(value) >= 1e6 ? 'compact' : 'standard' }).format(value) : '--';
+function metric(id, value, unit, digits = 1) {
+  const small = document.createElement('small');
+  small.textContent = unit;
+  $(id).replaceChildren(document.createTextNode(format(value, digits)), small);
+}
+function drawGeometry() {
+  if (!lastResult) return;
+  const quantity = $('geometryPlot').value;
+  plots.geometry.set(lastResult.stations.map(s => ({ x: s.r, y: s[quantity] })), { xMin: lastResult.config.hub });
+}
+function renderResult(result, solvedMode) {
+  lastResult = result;
+  if (solvedMode === 'design' && result.converged) {
+    invalidateAnalyses();
+    geometry = result.geometry;
+    result.config.geometry = geometry;
+    syncControls();
+    $('geometryBadge').textContent = 'Designed';
+    $('sceneGeometry').textContent = 'Designed';
   }
-  return `${outline.join(' ')} ${inner.join(' ')} Z`;
-}
-
-function buildTopRotorMarkup(model) {
-  const width = 920;
-  const height = 520;
-  const cx = width * 0.5;
-  const cy = height * 0.52;
-  const radiusScale = 182;
-  const rings = [0.25, 0.5, 0.75, 1.0].map((fraction) => `
-    <circle cx="${cx}" cy="${cy}" r="${(radiusScale * fraction).toFixed(2)}" fill="none" stroke="rgba(255,255,255,0.10)" stroke-width="1" />
-  `).join('');
-  const spokes = Array.from({ length: 6 }, (_, index) => {
-    const angle = index * Math.PI / 3.0;
-    const [x1, y1] = polarPoint(cx, cy, radiusScale, angle);
-    const [x2, y2] = polarPoint(cx, cy, radiusScale, angle + Math.PI);
-    return `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}" stroke="rgba(255,255,255,0.06)" stroke-width="1" />`;
-  }).join('');
-
-  const blades = Array.from({ length: model.blades }, (_, index) => {
-    const angle = -Math.PI / 2 + index * (2 * Math.PI / model.blades);
-    const bladePath = buildBladePath(model, angle, cx, cy, radiusScale);
-    const wakeStart = polarPoint(cx, cy, radiusScale * 0.92, angle);
-    const wakeMid = polarPoint(cx, cy, radiusScale * 1.16, angle + 0.22 + model.advanceRatio * 0.1);
-    const wakeEnd = polarPoint(cx, cy, radiusScale * 1.35, angle + 0.35 + model.advanceRatio * 0.16);
-    return `
-      <path d="${bladePath}" fill="rgba(127,179,255,0.20)" stroke="rgba(127,179,255,0.90)" stroke-width="1.8" />
-      <path d="M ${wakeStart[0].toFixed(2)} ${wakeStart[1].toFixed(2)} Q ${wakeMid[0].toFixed(2)} ${wakeMid[1].toFixed(2)} ${wakeEnd[0].toFixed(2)} ${wakeEnd[1].toFixed(2)}" fill="none" stroke="rgba(111,207,151,0.62)" stroke-width="1.4" stroke-dasharray="5 5" />
-    `;
-  }).join('');
-
-  const ductMarkup = model.ducted
-    ? `<ellipse cx="${cx}" cy="${cy}" rx="${(radiusScale + 20).toFixed(2)}" ry="${(radiusScale + 20).toFixed(2)}" fill="none" stroke="rgba(251,191,36,0.65)" stroke-width="5" />`
-    : '';
-
-  return `
-    <rect width="${width}" height="${height}" fill="transparent" />
-    ${rings}
-    ${spokes}
-    ${ductMarkup}
-    <circle cx="${cx}" cy="${cy}" r="${(radiusScale * model.hubRatio).toFixed(2)}" fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.25)" stroke-width="1.4" />
-    ${blades}
-    <text x="${cx - radiusScale - 20}" y="${cy + radiusScale + 28}" fill="#9aa4af" font-size="12">r/R rings: 0.25 · 0.50 · 0.75 · 1.00</text>
-  `;
-}
-
-function buildSideRotorMarkup(model) {
-  const width = 920;
-  const height = 520;
-  const left = 120;
-  const right = width - 120;
-  const baseline = height * 0.62;
-  const hubX = width * 0.36;
-  const rotorHeight = 280;
-  const ductOffset = model.ducted ? 28 : 0;
-  const streamlines = Array.from({ length: 5 }, (_, index) => {
-    const y = baseline - 120 + index * 56;
-    const skew = model.wakeSkewDeg * 1.6;
-    return `<path d="M ${left} ${y} C ${left + 180} ${y - 10}, ${hubX + 120} ${y + skew * 0.08}, ${right} ${y + skew * 0.42}" fill="none" stroke="rgba(111,207,151,0.55)" stroke-width="1.4" stroke-dasharray="6 6" />`;
-  }).join('');
-
-  return `
-    <rect width="${width}" height="${height}" fill="transparent" />
-    <line x1="${left}" y1="${baseline}" x2="${right}" y2="${baseline}" stroke="rgba(255,255,255,0.10)" stroke-width="1" />
-    <ellipse cx="${hubX}" cy="${baseline}" rx="${(20 + ductOffset).toFixed(2)}" ry="${(rotorHeight * 0.5 + ductOffset).toFixed(2)}" fill="rgba(127,179,255,0.08)" stroke="rgba(127,179,255,0.85)" stroke-width="3" />
-    <ellipse cx="${hubX}" cy="${baseline}" rx="10" ry="30" fill="rgba(255,255,255,0.12)" stroke="rgba(255,255,255,0.22)" stroke-width="1.2" />
-    <path d="M ${hubX - 16} ${baseline - 0.5 * rotorHeight} L ${hubX + 150} ${baseline - 0.42 * rotorHeight} L ${hubX + 220} ${baseline - 16} L ${hubX + 150} ${baseline - 6} Z" fill="rgba(127,179,255,0.20)" stroke="rgba(127,179,255,0.90)" stroke-width="1.8" />
-    <path d="M ${hubX - 16} ${baseline + 0.5 * rotorHeight} L ${hubX + 150} ${baseline + 0.42 * rotorHeight} L ${hubX + 220} ${baseline + 16} L ${hubX + 150} ${baseline + 6} Z" fill="rgba(127,179,255,0.20)" stroke="rgba(127,179,255,0.90)" stroke-width="1.8" />
-    ${streamlines}
-    <text x="${left}" y="${baseline - 142}" fill="#9aa4af" font-size="12">Wake skew ≈ ${format(model.wakeSkewDeg, 1)} deg</text>
-    <text x="${left}" y="${baseline + 42}" fill="#9aa4af" font-size="12">Airspeed ${format(model.airspeed, 1)} m/s · Tip speed ${format(model.tipSpeed, 1)} m/s</text>
-  `;
-}
-
-function buildNoiseRotorMarkup(model) {
-  const width = 920;
-  const height = 520;
-  const cx = width * 0.43;
-  const cy = height * 0.52;
-  const baseRadius = 88;
-  const lobe = model.spl * 1.15;
-  const micX = cx + clamp(model.micY / model.gridRadius, -1, 1) * 180;
-  const micY = cy - clamp(model.micX / model.gridRadius, -1, 1) * 180;
-  return `
-    <defs>
-      <radialGradient id="noiseGlow" cx="50%" cy="50%" r="65%">
-        <stop offset="0%" stop-color="rgba(251,191,36,0.45)" />
-        <stop offset="45%" stop-color="rgba(64,162,216,0.28)" />
-        <stop offset="100%" stop-color="rgba(15,17,21,0.0)" />
-      </radialGradient>
-    </defs>
-    <rect width="${width}" height="${height}" fill="transparent" />
-    <ellipse cx="${cx}" cy="${cy}" rx="${(baseRadius + lobe * 0.55).toFixed(2)}" ry="${(baseRadius * 0.85 + lobe * 0.20).toFixed(2)}" fill="url(#noiseGlow)" />
-    <ellipse cx="${cx + 44}" cy="${cy - 18}" rx="${(baseRadius + lobe * 0.30).toFixed(2)}" ry="${(baseRadius * 0.60 + lobe * 0.15).toFixed(2)}" fill="none" stroke="rgba(251,191,36,0.55)" stroke-width="2.2" />
-    <ellipse cx="${cx - 12}" cy="${cy + 8}" rx="${(baseRadius + lobe * 0.12).toFixed(2)}" ry="${(baseRadius * 0.45).toFixed(2)}" fill="none" stroke="rgba(64,162,216,0.45)" stroke-width="1.8" />
-    <circle cx="${cx}" cy="${cy}" r="${baseRadius.toFixed(2)}" fill="rgba(127,179,255,0.10)" stroke="rgba(127,179,255,0.85)" stroke-width="1.8" />
-    <circle cx="${micX.toFixed(2)}" cy="${micY.toFixed(2)}" r="7" fill="#f8fafc" stroke="#7fb3ff" stroke-width="2" />
-    <line x1="${cx}" y1="${cy}" x2="${micX.toFixed(2)}" y2="${micY.toFixed(2)}" stroke="rgba(255,255,255,0.20)" stroke-dasharray="4 5" />
-    <text x="${micX + 12}" y="${micY - 10}" fill="#e8edf2" font-size="12">mic</text>
-    <text x="${cx - 26}" y="${cy + baseRadius + 30}" fill="#9aa4af" font-size="12">preview lobe at ${format(model.spl, 1)} dBA</text>
-  `;
-}
-
-function drawRotorStage(model) {
-  let subtitle = 'Top-down blade planform and wake framing.';
-  if (uiState.viewMode === 'side') {
-    subtitle = 'Side elevation with skewed wake streamlines.';
-    els.rotorSvg.innerHTML = buildSideRotorMarkup(model);
-  } else if (uiState.viewMode === 'noise') {
-    subtitle = 'Acoustic directivity cue around the rotor disk.';
-    els.rotorSvg.innerHTML = buildNoiseRotorMarkup(model);
-  } else {
-    els.rotorSvg.innerHTML = buildTopRotorMarkup(model);
-  }
-  els.viewerSubtitle.textContent = subtitle;
-  els.viewerAircraftName.textContent = model.rotorName;
-}
-
-function drawSpanwisePlot(model) {
-  const width = 920;
-  const height = 280;
-  const left = 64;
-  const right = width - 18;
-  const top = 18;
-  const bottom = height - 34;
-  const plotWidth = right - left;
-  const plotHeight = bottom - top;
-  const x = (t) => left + t * plotWidth;
-  const y = (value) => bottom - value * plotHeight;
-
-  const chordValues = model.stations.map((station) => station.chord / Math.max(model.meanChord * 1.15, 1e-6));
-  const betaValues = model.stations.map((station) => station.beta / Math.max(model.collective + model.tipTwist + 6.0, 1e-6));
-  const clValues = model.stations.map((station) => station.cl / 1.3);
-
-  const series = [
-    { label: 'c/R cue', color: '#7fb3ff', values: chordValues },
-    { label: 'beta cue', color: '#fb923c', values: betaValues },
-    { label: 'CL cue', color: '#6fcf97', values: clValues },
-  ];
-
-  const grid = [0, 0.25, 0.5, 0.75, 1].map((fraction) => `
-    <line x1="${left}" y1="${y(fraction)}" x2="${right}" y2="${y(fraction)}" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
-    <text x="${left - 12}" y="${y(fraction) + 4}" fill="#9aa4af" font-size="11" text-anchor="end">${format(fraction, 2)}</text>
-  `).join('');
-
-  const ticks = [0, 0.25, 0.5, 0.75, 1].map((fraction) => `
-    <line x1="${x(fraction)}" y1="${bottom}" x2="${x(fraction)}" y2="${top}" stroke="rgba(255,255,255,0.05)" stroke-width="1" />
-    <text x="${x(fraction)}" y="${height - 12}" fill="#9aa4af" font-size="11" text-anchor="middle">${format(model.hubRatio + (1 - model.hubRatio) * fraction, 2)}</text>
-  `).join('');
-
-  const lines = series.map((seriesItem) => {
-    const points = seriesItem.values.map((value, index) => {
-      const t = index / (seriesItem.values.length - 1);
-      return [x(t), y(clamp(value, 0, 1.1))];
+  dirty = false;
+  $('dirtyTag').hidden = true;
+  const s = result.summary;
+  status(result.converged ? 'Converged' : 'Not converged', result.converged ? 'converged' : 'warning');
+  if (Math.abs(s.TDIM) < 1) metric('thrust', s.TDIM * 1000, 'mN');
+  else metric('thrust', s.TDIM, 'N', 0);
+  if (Math.abs(s.PDIM) < 1) metric('power', s.PDIM * 1000, 'mW');
+  else if (Math.abs(s.PDIM) < 1000) metric('power', s.PDIM, 'W');
+  else metric('power', s.PDIM / 1000, 'kW');
+  metric('efficiency', s.EFFTOT * 100, '%');
+  if (Math.abs(s.QDIM) < 1) metric('torque', s.QDIM * 1000, 'mN m');
+  else metric('torque', s.QDIM, 'N m', 0);
+  $('advance').textContent = format(s.J, 3);
+  $('ct').textContent = format(s.CT, 3);
+  $('cp').textContent = format(s.CP, 3);
+  $('solverModel').textContent = result.model;
+  $('solverTiming').textContent = format(result.elapsed, 0) + ' ms';
+  $('footerState').textContent = result.stations.length + ' stations / ' + result.history.length + ' iterations';
+  const fragment = document.createDocumentFragment();
+  result.stations.forEach((station, i) => {
+    const row = document.createElement('tr');
+    [String(i + 1).padStart(2, '0'), station.r.toFixed(3), station.chord.toFixed(4), station.pitch.toFixed(2), station.cl.toFixed(3), station.cd.toFixed(4), station.mach.toFixed(3)].forEach(value => {
+      const cell = document.createElement('td'); cell.textContent = value; row.append(cell);
     });
-    return `<path d="${pathFromSeries(points)}" fill="none" stroke="${seriesItem.color}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" />`;
-  }).join('');
-
-  const legend = series.map((seriesItem, index) => `
-    <g transform="translate(${left + index * 146}, ${top + 8})">
-      <line x1="0" y1="0" x2="22" y2="0" stroke="${seriesItem.color}" stroke-width="2.2" />
-      <text x="30" y="4" fill="#9aa4af" font-size="11">${seriesItem.label}</text>
-    </g>
-  `).join('');
-
-  els.spanwiseSvg.innerHTML = `
-    <rect width="${width}" height="${height}" fill="transparent" />
-    ${grid}
-    ${ticks}
-    <line x1="${left}" y1="${bottom}" x2="${right}" y2="${bottom}" stroke="rgba(255,255,255,0.16)" stroke-width="1.1" />
-    <line x1="${left}" y1="${top}" x2="${left}" y2="${bottom}" stroke="rgba(255,255,255,0.16)" stroke-width="1.1" />
-    ${lines}
-    ${legend}
-    <text x="${(left + right) / 2}" y="${height - 8}" fill="#9aa4af" font-size="11" text-anchor="middle">r/R</text>
-  `;
-}
-
-function colorForLevel(level, min, max) {
-  const t = clamp((level - min) / Math.max(max - min, 1e-6), 0, 1);
-  const stops = [
-    [7, 21, 31],
-    [18, 48, 74],
-    [34, 93, 136],
-    [64, 162, 216],
-    [251, 191, 36],
-    [251, 113, 133],
-  ];
-  const scaled = t * (stops.length - 1);
-  const index = Math.floor(scaled);
-  const local = scaled - index;
-  const a = stops[index];
-  const b = stops[Math.min(index + 1, stops.length - 1)];
-  const mix = a.map((value, channel) => Math.round(value + (b[channel] - value) * local));
-  return `rgb(${mix[0]} ${mix[1]} ${mix[2]})`;
-}
-
-function drawFootprint(model) {
-  const canvas = els.footprintCanvas;
-  const rect = canvas.getBoundingClientRect();
-  const width = Math.max(320, Math.round(rect.width || 920));
-  const height = Math.max(220, Math.round(rect.height || 340));
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = width * dpr;
-  canvas.height = height * dpr;
-
-  const ctx = canvas.getContext('2d');
-  if (!ctx) {
-    return;
-  }
-
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = '#0f1115';
-  ctx.fillRect(0, 0, width, height);
-
-  const padding = 18;
-  const minLevel = model.spl - 24;
-  const maxLevel = model.spl + 3;
-  const gridSteps = model.gridResolution;
-  const xExtent = model.gridRadius;
-  const yExtent = model.gridRadius * 0.72;
-
-  for (let ix = 0; ix < gridSteps; ix += 1) {
-    for (let iy = 0; iy < gridSteps; iy += 1) {
-      const x0 = padding + ix / gridSteps * (width - 2 * padding);
-      const y0 = padding + iy / gridSteps * (height - 2 * padding);
-      const x = -xExtent + (ix + 0.5) / gridSteps * (2 * xExtent);
-      const y = -yExtent + (iy + 0.5) / gridSteps * (2 * yExtent);
-      const r = Math.sqrt((x / (model.tipRadius * 4.2)) ** 2 + (y / (model.tipRadius * 2.8)) ** 2);
-      const skew = Math.cos(Math.atan2(y, x + 1e-6) - model.wakeSkewDeg * Math.PI / 180.0);
-      let level = model.spl - 12.0 * Math.log10(1.0 + r ** 2 * 2.3) + skew * 2.2;
-      level += model.ducted ? -1.8 * Math.exp(-(r ** 2) * 0.8) : 0.0;
-      if (!model.aWeighting) {
-        level += 1.5;
-      }
-      ctx.fillStyle = colorForLevel(level, minLevel, maxLevel);
-      ctx.globalAlpha = 0.82;
-      ctx.fillRect(x0, y0, (width - 2 * padding) / gridSteps + 1, (height - 2 * padding) / gridSteps + 1);
-    }
-  }
-  ctx.globalAlpha = 1.0;
-
-  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-  ctx.lineWidth = 1;
-  for (let i = 0; i <= 4; i += 1) {
-    const x = padding + i / 4 * (width - 2 * padding);
-    const y = padding + i / 4 * (height - 2 * padding);
-    ctx.beginPath();
-    ctx.moveTo(x, padding);
-    ctx.lineTo(x, height - padding);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(padding, y);
-    ctx.lineTo(width - padding, y);
-    ctx.stroke();
-  }
-
-  ctx.strokeStyle = 'rgba(127,179,255,0.85)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.ellipse(width * 0.5, height * 0.5, 16, 16, 0, 0, Math.PI * 2);
-  ctx.stroke();
-
-  const micPx = padding + clamp((model.micY + xExtent) / (2 * xExtent), 0, 1) * (width - 2 * padding);
-  const micPy = padding + clamp(1 - (model.micX + yExtent) / (2 * yExtent), 0, 1) * (height - 2 * padding);
-  ctx.fillStyle = '#f8fafc';
-  ctx.strokeStyle = '#7fb3ff';
-  ctx.beginPath();
-  ctx.arc(micPx, micPy, 5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  ctx.fillStyle = '#9aa4af';
-  ctx.font = '11px Consolas, "Courier New", monospace';
-  ctx.fillText(`preview footprint ${format(model.spl, 1)} dBA`, padding, 14);
-  ctx.fillText('mic', micPx + 10, micPy - 6);
-}
-
-function updateOutputs(model) {
-  els.rotorMeta.textContent = `${model.blades}-blade preview · ${format(model.tipRadius * 2, 2)} m diameter · ${model.ducted ? 'ducted shell' : 'open rotor shell'}`;
-  els.micDistance.textContent = `${format(model.micDistance, 1)} m`;
-  els.advanceRatioPill.textContent = format(model.advanceRatio, 3);
-  els.outTipSpeed.textContent = `${format(model.tipSpeed, 1)} m/s`;
-  els.outAdvanceRatio.textContent = format(model.advanceRatio, 3);
-  els.outDiskLoading.textContent = `${format(model.diskLoading, 1)} N/m²`;
-  els.outSolidity.textContent = format(model.solidity, 3);
-  els.outPower.textContent = `${format(model.shaftPower / 1000, 1)} kW`;
-  els.outSpl.textContent = `${format(model.spl, 1)} ${model.aWeighting ? 'dBA' : 'dB'}`;
-  els.outTipMach.textContent = format(model.tipMach, 3);
-  els.outWakeSkew.textContent = `${format(model.wakeSkewDeg, 1)}°`;
-
-  const tableLines = [
-    ' i   r/R   chord(m)  beta(deg)   CL    Mach',
-    '---------------------------------------------',
-  ];
-  model.stations.forEach((station, index) => {
-    if (index % 2 !== 0 && index !== model.stations.length - 1) {
-      return;
-    }
-    tableLines.push(
-      `${String(index + 1).padStart(2)}  ${format(station.rOverR, 3).padStart(5)}   ${format(station.chord, 3).padStart(7)}   ${format(station.beta, 2).padStart(8)}  ${format(station.cl, 3).padStart(5)}  ${format(station.mach, 3).padStart(5)}`,
-    );
+    if (station.stalled) { row.classList.add('stalled'); row.title = 'Section stalled'; }
+    fragment.append(row);
   });
-  els.stationTable.textContent = tableLines.join('\n');
-
-  const logLines = [
-    `[preview] ${model.rotorName}`,
-    `[geometry] blades=${model.blades} radius=${format(model.tipRadius, 3)}m hub=${format(model.hubRadius, 3)}m chord=${format(model.meanChord, 3)}m twist=${format(model.tipTwist, 1)}deg`,
-    `[operating] rpm=${format(model.rpm, 0)} airspeed=${format(model.airspeed, 1)}m/s thrust=${format(model.targetThrust, 1)}N J=${format(model.advanceRatio, 3)} Ct=${format(model.thrustCoeff, 4)}`,
-    `[noise] mic=(${format(model.micX, 1)}, ${format(model.micY, 1)}, ${format(model.micZ, 1)})m SPL=${format(model.spl, 1)}${model.aWeighting ? ' dBA' : ' dB'}`,
-    `[note] UI values are generated previews so the shell stays useful before the full XROTOR-backed app lands.`,
-  ];
-  els.previewLog.textContent = logLines.join('\n');
+  $('stationRows').replaceChildren(fragment);
+  plots.loading.set(result.stations.map(row => ({ x: row.r, y: row.cl })), { xMin: result.config.hub });
+  drawGeometry();
+  plots.history.set(result.history.map(row => ({ x: row.ITER, y: Math.log10(Math.max(row.RMS, 1e-16)) })));
+  $('historyMeta').textContent = 'RMS ' + result.rms.toExponential(3) + ' / ' + result.history.length + ' iterations';
+  rotor?.update(result.config, result.stations);
+  $('exportCsv').disabled = false;
+  $('saveCase').disabled = !result.converged;
+  const warning = !result.converged ? 'Iteration limit reached. Results are provisional.' :
+    result.stalled ? result.stalled + ' blade sections stalled.' : '';
+  message((solvedMode === 'design' ? 'Design' : 'Operating point') + (result.converged ? ' converged' : ' did not converge') +
+    ' in ' + result.history.length + ' iterations.' + (warning ? ' ' + warning : ''), warning ? 'warning' : '');
+}
+async function runSolve() {
+  if (!form.reportValidity()) return;
+  const solvedMode = mode;
+  status('Solving');
+  await task(solvedMode === 'design' ? 'Designing minimum-induced-loss rotor...' : 'Solving operating point...', solvedMode, readConfig(), undefined, result => renderResult(result, solvedMode));
+}
+function switchMode(value) {
+  mode = value;
+  all('[data-mode]').forEach(button => {
+    const active = button.dataset.mode === mode;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', active);
+  });
+  $('designFields').hidden = mode !== 'design';
+  $('solve').querySelector('span').textContent = mode === 'design' ? 'Design rotor' : 'Run analysis';
+}
+function download(name, text, type) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const anchor = document.createElement('a');
+  anchor.href = url; anchor.download = name; anchor.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function filename() { return (form.elements.name.value.trim() || 'rotor').replace(/[^a-z0-9_-]+/gi, '-').slice(0, 80); }
+function persistCases() {
+  try { localStorage.setItem(storageKey, JSON.stringify(cases)); return true; }
+  catch { message('Browser storage is unavailable. Save a project file to keep this case.', 'warning'); return false; }
+}
+function renderCases() {
+  $('caseCount').textContent = cases.length;
+  $('caseList').replaceChildren();
+  if (!cases.length) {
+    const p = document.createElement('p'); p.className = 'empty-state'; p.textContent = 'No saved cases'; $('caseList').append(p);
+  }
+  for (const entry of cases) {
+    const row = document.createElement('div'); row.className = 'case-row';
+    const restore = document.createElement('button');
+    restore.title = 'Load ' + entry.config.name;
+    const name = document.createElement('span'); name.className = 'case-name'; name.textContent = entry.config.name;
+    const value = document.createElement('span'); value.className = 'case-value'; value.textContent = format(entry.thrust, 0) + ' N';
+    restore.append(name, value);
+    restore.addEventListener('click', () => {
+      task('Loading saved case...', 'validate', entry.config, undefined, config => {
+        applyConfig(config); switchMode('operate'); runSolve();
+      });
+    });
+    const remove = document.createElement('button'); remove.className = 'icon-button';
+    remove.title = 'Delete ' + entry.config.name; remove.setAttribute('aria-label', remove.title); remove.append(icon('x'));
+    remove.addEventListener('click', () => { cases = cases.filter(c => c.id !== entry.id); persistCases(); renderCases(); });
+    row.append(restore, remove); $('caseList').append(row);
+  }
+  refreshIcons();
 }
 
-function updateApp() {
-  const model = computeModel(collectInputs());
-  updateOutputs(model);
-  drawRotorStage(model);
-  drawSpanwisePlot(model);
-  drawFootprint(model);
-}
-
-function attachInputs() {
-  inputs.forEach((element) => {
-    element.addEventListener('input', updateApp);
-    element.addEventListener('change', updateApp);
+all('#rotorForm input[type=number]').forEach(input => {
+  if (!['blades', 'iterations'].includes(input.name)) input.step = 'any';
+  input.required = true;
+});
+form.addEventListener('submit', event => { event.preventDefault(); runSolve(); });
+form.addEventListener('input', event => {
+  if (event.target.id === 'preset') return;
+  if (event.target.id === 'pitchRange') form.elements.pitch.value = event.target.value;
+  if (['rootChord', 'tipChord', 'pitch', 'radius', 'hub'].includes(event.target.name) || event.target.id === 'pitchRange') geometry = undefined;
+  $('preset').value = 'custom';
+  syncControls(); markDirty(); preview();
+  message('Inputs modified. Run ' + (mode === 'design' ? 'design' : 'analysis') + ' to update results.', 'warning');
+});
+$('preset').addEventListener('change', () => {
+  const id = $('preset').value;
+  applyConfig(examples[id]?.config || presets[id] || defaults, id);
+  switchMode('operate');
+  runSolve();
+});
+all('[data-mode]').forEach(button => button.addEventListener('click', () => switchMode(button.dataset.mode)));
+$('cancel').addEventListener('click', () => cancelTask());
+all('[data-panel]').filter(button => button.tagName === 'BUTTON').forEach(button => button.addEventListener('click', () => {
+  document.querySelector('.workbench').dataset.panel = button.dataset.panel;
+  all('.mobile-tabs button').forEach(tab => tab.classList.toggle('active', tab === button));
+}));
+all('[data-view]').forEach(button => {
+  button.addEventListener('click', () => {
+    all('[data-view]').forEach(tab => {
+      const active = tab === button;
+      tab.classList.toggle('active', active); tab.setAttribute('aria-selected', active); tab.tabIndex = active ? 0 : -1;
+      $('view-' + tab.dataset.view).hidden = !active;
+    });
+  });
+  button.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const tabs = all('[data-view]'), index = tabs.indexOf(button);
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    tabs[next].click(); tabs[next].focus();
+  });
+});
+all('[data-table]').forEach(button => button.addEventListener('click', () => {
+  all('[data-table]').forEach(tab => tab.classList.toggle('active', tab === button));
+  $('stationPanel').hidden = button.dataset.table !== 'stations';
+  $('historyPanel').hidden = button.dataset.table !== 'history';
+}));
+for (const [id, view] of Object.entries({ viewIso: 'iso', viewFront: 'front', viewSide: 'side', fitView: 'iso' })) {
+  $(id).addEventListener('click', () => {
+    rotor?.setView(view);
+    ['viewIso', 'viewFront', 'viewSide'].forEach(key => $(key).classList.toggle('active', key.toLowerCase().endsWith(view)));
   });
 }
+$('spin').addEventListener('click', () => {
+  if (rotor) { rotor.spinning = !rotor.spinning; $('spin').setAttribute('aria-pressed', rotor.spinning); }
+});
+$('wireframe').addEventListener('click', () => $('wireframe').setAttribute('aria-pressed', rotor?.toggleWire() || false));
+$('geometryPlot').addEventListener('change', drawGeometry);
+$('sweepForm').addEventListener('submit', event => {
+  event.preventDefault();
+  if (!form.reportValidity()) return;
+  const options = { from: Number($('sweepFrom').value), to: Number($('sweepTo').value), count: Number($('sweepCount').value) };
+  task('Running RPM sweep...', 'sweep', readConfig(), options, points => {
+    sweepPoints = points;
+    plots.sweepThrust.set(points.map(p => ({ x: p.rpm, y: p.converged ? p.thrust : null })));
+    plots.sweepEfficiency.set(points.map(p => ({ x: p.rpm, y: p.converged ? 100 * p.efficiency : null })));
+    const count = points.filter(p => p.converged).length;
+    $('sweepStatus').textContent = count + ' of ' + points.length + ' operating points converged.' + (count < points.length ? ' Unconverged points omitted from plots.' : '');
+    $('exportSweep').disabled = false;
+    message($('sweepStatus').textContent, count < points.length ? 'warning' : '');
+  }, ({ completed, total }) => {
+    $('sweepStatus').textContent = 'Solving point ' + completed + ' / ' + total;
+  });
+});
+$('noiseForm').addEventListener('submit', event => {
+  event.preventDefault();
+  if (!form.reportValidity()) return;
+  task('Calculating observer acoustics...', 'noise', readConfig(), {
+    x: Number($('observerX').value), y: Number($('observerY').value), z: Number($('observerZ').value), aoc: Number($('observerArea').value),
+  }, result => {
+    metric('noiseSpl', result.spl, 'dB'); metric('noiseBpf', result.bpf, 'Hz');
+    $('noiseSpl').dataset.calculated = 'true';
+    plots.spectrum.set(result.harmonics.map(p => ({ x: p.frequency, y: p.db })));
+    plots.trace.set(result.time.map((t, i) => ({ x: t * 1000, y: result.pressure[i] })));
+    const warnings = result.warnings?.length ? ' ' + result.warnings.join(' ') : '';
+    $('noiseStatus').textContent = '20 harmonics / 80 time intervals.' + warnings;
+    message('Observer acoustics calculated.' + warnings, warnings ? 'warning' : '');
+  });
+});
+$('sweepForm').addEventListener('input', () => {
+  $('exportSweep').disabled = true;
+  if (sweepPoints) $('sweepStatus').textContent = 'Sweep settings modified. Recalculate to update plots.';
+});
+$('noiseForm').addEventListener('input', () => { if ($('noiseSpl').dataset.calculated) $('noiseStatus').textContent = 'Observer settings modified. Recalculate to update acoustics.'; });
+$('saveCase').addEventListener('click', () => {
+  if (dirty || !lastResult?.converged || cases.length >= 20) { message('Up to 20 saved cases are supported. Delete a case to make room.', 'warning'); return; }
+  cases.unshift({ id: crypto.randomUUID(), config: structuredClone(readConfig()), thrust: lastResult.summary.TDIM });
+  const saved = persistCases(); renderCases();
+  if (saved) message('Case saved in this browser.');
+});
+$('openFile').addEventListener('click', () => $('fileInput').click());
+$('fileInput').addEventListener('change', async () => {
+  const file = $('fileInput').files[0]; $('fileInput').value = '';
+  if (!file) return;
+  try {
+    if (file.size > 1024 * 1024) throw new Error('Project files must be smaller than 1 MB.');
+    const project = JSON.parse(await file.text());
+    if (project?.format !== 'viberotor' || project.version !== 1 || !project.config || typeof project.config !== 'object') throw new Error('Not a supported VibeRotor project.');
+    await task('Opening rotor project...', 'validate', project.config, undefined, config => {
+      applyConfig(config); switchMode('operate'); runSolve();
+    });
+  } catch (error) { message('Could not open project: ' + error.message, 'error'); }
+});
+$('saveFile').addEventListener('click', () => {
+  if (!form.reportValidity()) return;
+  download(filename() + '.json', JSON.stringify({ format: 'viberotor', version: 1, config: readConfig() }, null, 2) + '\n', 'application/json');
+  message('Rotor project exported.');
+});
+$('exportCsv').addEventListener('click', () => {
+  if (!lastResult || dirty) return;
+  const keys = ['r', 'chord', 'pitch', 'cl', 'cd', 'mach', 'reynolds', 'circulation', 'axial', 'stalled'];
+  download(filename() + '-stations.csv', 'r_over_R,chord_m,pitch_deg,CL,CD,Mach,Re,circulation,axial_m_s,stalled\n' + lastResult.stations.map(row => keys.map(key => row[key]).join(',')).join('\n') + '\n', 'text/csv');
+});
+$('exportSweep').addEventListener('click', () => {
+  if (!sweepPoints) return;
+  download(filename() + '-sweep.csv', 'rpm,converged,thrust_N,power_W,efficiency\n' + sweepPoints.map(p => [p.rpm, p.converged, p.thrust ?? '', p.power ?? '', p.efficiency ?? ''].join(',')).join('\n') + '\n', 'text/csv');
+});
+$('reset').addEventListener('click', () => $('confirmReset').showModal());
+$('confirmReset').addEventListener('close', () => {
+  if ($('confirmReset').returnValue === 'reset') { applyConfig(defaults, 'baseline'); switchMode('operate'); runSolve(); }
+});
 
-function attachResizeHandler() {
-  window.addEventListener('resize', updateApp);
-}
-
-attachPanelToggles();
-attachPresets();
-attachMobileNav();
-attachViewButtons();
-attachInputs();
-attachResizeHandler();
-applyPreset('cruise');
+try {
+  const saved = JSON.parse(localStorage.getItem(storageKey) || '[]');
+  if (Array.isArray(saved)) cases = saved.filter(entry => entry && typeof entry.id === 'string' && entry.config && typeof entry.config.name === 'string' && Number.isFinite(entry.thrust)).slice(0, 20);
+} catch { /* Private browsing may disable persistent storage. */ }
+newWorker();
+refreshIcons();
+renderCases();
+syncControls();
+preview();
+$('tab-rotor').click();
+runSolve();
